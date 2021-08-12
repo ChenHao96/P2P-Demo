@@ -14,6 +14,7 @@ public class ClientBootstrap {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
+        String clientIp = "h";
         Enumeration<NetworkInterface> faces = NetworkInterface.getNetworkInterfaces();
         while (faces.hasMoreElements()) {
             NetworkInterface face = faces.nextElement();
@@ -36,6 +37,7 @@ public class ClientBootstrap {
             InetAddress addr = face.getInetAddresses().nextElement();
             System.out.printf("主机名称: %s\n", addr.getHostName());
             System.out.printf("网络地址: %s\n", addr.getHostAddress());
+            clientIp = String.format("client::%s", addr.getHostAddress());
         }
 
         // p2p登录服务器
@@ -43,6 +45,7 @@ public class ClientBootstrap {
 
         DatagramSocket client = new DatagramSocket();
         CountDownLatch countDownLatch = new CountDownLatch(1);
+        client.send(new DatagramPacket(clientIp.getBytes(), clientIp.length(), socketAddress));
 
         HeartbeatRunnable heartbeatRunnable = new HeartbeatRunnable(client);
         heartbeatRunnable.setSocketAddress(socketAddress);
@@ -50,7 +53,7 @@ public class ClientBootstrap {
         MessageProcessRunnable messageProcessRunnable = new MessageProcessRunnable(client, countDownLatch);
         messageProcessRunnable.setHeartbeatRunnable(heartbeatRunnable);
 
-        poolExecutor.scheduleAtFixedRate(heartbeatRunnable, 0, 15, TimeUnit.SECONDS);
+        poolExecutor.scheduleAtFixedRate(heartbeatRunnable, 10, 15, TimeUnit.SECONDS);
         poolExecutor.schedule(messageProcessRunnable, 0, TimeUnit.SECONDS);
 
         countDownLatch.await();

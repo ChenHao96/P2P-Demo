@@ -3,8 +3,12 @@ package top.sclab.java;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ServerBootstrap {
+
+    public static final String CLIENT_PREFIX = "client::";
 
     public static void main(String[] args) {
 
@@ -18,16 +22,23 @@ public class ServerBootstrap {
             System.out.printf("Server:%d is working...\n", udpServerPort);
 
             InetSocketAddress client1 = null, client2 = null;
+            Map<InetSocketAddress, String> clientIpMap = new HashMap<>();
 
             while (true) {
                 server.receive(packet);
 
                 String content = new String(packet.getData(), 0, packet.getLength());
+                System.out.printf("Client address:%s msg:%s\n", packet.getSocketAddress(), content);
+
                 if ("shutdown".equalsIgnoreCase(content)) {
                     if (packet.getAddress().isLoopbackAddress()) {
                         break;
                     }
                 } else if ("h".equalsIgnoreCase(content)) {
+                    server.send(new DatagramPacket(new byte[]{'b'}, 1, packet.getSocketAddress()));
+                } else if (content.startsWith(CLIENT_PREFIX)) {
+                    String clientIp = content.substring(CLIENT_PREFIX.length());
+                    clientIpMap.put((InetSocketAddress) packet.getSocketAddress(), clientIp);
 
                     if (client1 == null) {
                         client1 = (InetSocketAddress) packet.getSocketAddress();
@@ -35,18 +46,15 @@ public class ServerBootstrap {
                         client2 = (InetSocketAddress) packet.getSocketAddress();
                     }
 
-                    if (client2 == null) {
-                        server.send(new DatagramPacket(new byte[]{'b'}, 1, packet.getSocketAddress()));
-                    } else {
+                    if (client2 != null) {
                         String a = String.format("connect::%s,%d", client2.getHostString(), client2.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client1));
 
                         a = String.format("connect::%s,%d", client1.getHostString(), client1.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
+                        break;
                     }
                 }
-
-                System.out.printf("Client address:%s msg:%s\n", packet.getSocketAddress(), content);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
