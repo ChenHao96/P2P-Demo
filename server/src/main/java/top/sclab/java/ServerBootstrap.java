@@ -1,7 +1,5 @@
 package top.sclab.java;
 
-import top.sclab.java.util.IOUtil;
-
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -53,9 +51,23 @@ public class ServerBootstrap {
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
-            IOUtil.safeClose(server);
+            safeClose(server);
         }
 
         System.out.println("Server closed. Byb!");
+    }
+
+    public static void safeClose(AutoCloseable... closeables) {
+        if (closeables != null && closeables.length > 0) {
+            for (AutoCloseable closeable : closeables) {
+                if (closeable != null) {
+                    try {
+                        closeable.close();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
     }
 }
