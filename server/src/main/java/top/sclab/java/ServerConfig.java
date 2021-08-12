@@ -40,10 +40,12 @@ public final class ServerConfig {
         }
 
         properties = new Properties();
-        try {
-            properties.load(new URLReader(configUrl));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (configUrl != null) {
+            try {
+                properties.load(new URLReader(configUrl));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

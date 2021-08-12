@@ -39,7 +39,7 @@ public class ClientBootstrap {
         }
 
         // p2p登录服务器
-        SocketAddress socketAddress = new InetSocketAddress("localhost", 8881);
+        SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
 
         DatagramSocket client = new DatagramSocket();
         CountDownLatch countDownLatch = new CountDownLatch(1);
