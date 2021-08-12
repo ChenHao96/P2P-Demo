@@ -47,10 +47,20 @@ public class ServerBootstrap {
                     }
 
                     if (client2 != null) {
-                        String a = String.format("connect::%s,%d", client2.getHostString(), client2.getPort());
+                        String host = client2.getHostString();
+                        if (host.equals(client1.getHostString())) {
+                            host = clientIpMap.get(client1);
+                        }
+
+                        String a = String.format("connect::%s,%d", host, client2.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client1));
 
-                        a = String.format("connect::%s,%d", client1.getHostString(), client1.getPort());
+                        host = client1.getHostString();
+                        if (host.equals(client2.getHostString())) {
+                            host = clientIpMap.get(client2);
+                        }
+
+                        a = String.format("connect::%s,%d", host, client1.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
                         break;
                     }
