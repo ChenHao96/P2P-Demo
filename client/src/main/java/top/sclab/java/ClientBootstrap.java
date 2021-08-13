@@ -37,17 +37,17 @@ public class ClientBootstrap {
             InetAddress addr = face.getInetAddresses().nextElement();
             System.out.printf("主机名称: %s\n", addr.getHostName());
             System.out.printf("网络地址: %s\n", addr.getHostAddress());
-            clientIp = String.format("client::%s", addr.getHostAddress());
+            clientIp = addr.getHostAddress();
         }
 
         // p2p登录服务器
-        SocketAddress socketAddress = new InetSocketAddress("8.136.189.243", 8880);
-//        SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
+//        SocketAddress socketAddress = new InetSocketAddress("8.136.189.243", 8880);
+        SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
 
         DatagramSocket client = new DatagramSocket();
         CountDownLatch countDownLatch = new CountDownLatch(1);
 
-        String clientAddress = String.format("%s:%d", clientIp, client.getLocalPort());
+        String clientAddress = String.format("client::udp://%s:%d", clientIp, client.getLocalPort());
         client.send(new DatagramPacket(clientAddress.getBytes(), clientAddress.length(), socketAddress));
 
         HeartbeatRunnable heartbeatRunnable = new HeartbeatRunnable(client);

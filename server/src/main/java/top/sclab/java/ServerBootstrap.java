@@ -3,6 +3,7 @@ package top.sclab.java;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,7 +23,7 @@ public class ServerBootstrap {
             System.out.printf("Server:%d is working...\n", udpServerPort);
 
             InetSocketAddress client1 = null, client2 = null;
-            Map<InetSocketAddress, String> clientIpMap = new HashMap<>();
+            Map<InetSocketAddress, URI> clientIpMap = new HashMap<>();
 
             while (true) {
                 server.receive(packet);
@@ -38,8 +39,8 @@ public class ServerBootstrap {
                     server.send(new DatagramPacket(new byte[]{'b'}, 1, packet.getSocketAddress()));
                 } else if (content.startsWith(CLIENT_PREFIX)) {
 
-                    String clientIp = content.substring(CLIENT_PREFIX.length());
-                    clientIpMap.put((InetSocketAddress) packet.getSocketAddress(), clientIp);
+                    String clientAddress = content.substring(CLIENT_PREFIX.length());
+                    clientIpMap.put((InetSocketAddress) packet.getSocketAddress(), new URI(clientAddress));
 
                     if (client1 == null) {
                         client1 = (InetSocketAddress) packet.getSocketAddress();
@@ -48,20 +49,20 @@ public class ServerBootstrap {
                     }
 
                     if (client2 != null) {
-                        String host = client2.getHostString();
-                        if (host.equals(client1.getHostString())) {
-                            host = clientIpMap.get(client1);
+                        URI host = clientIpMap.get(client2);
+                        if (!client2.getHostString().equals(client1.getHostString())) {
+                            host = new URI("udp", null, client2.getHostString(), client2.getPort(), null, null, null);
                         }
 
-                        String a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host, client2.getPort());
+                        String a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host.getHost(), host.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client1));
 
-                        host = client1.getHostString();
-                        if (host.equals(client2.getHostString())) {
-                            host = clientIpMap.get(client2);
+                        host = clientIpMap.get(client1);
+                        if (!client1.getHostString().equals(client2.getHostString())) {
+                            host = new URI("udp", null, client1.getHostString(), client1.getPort(), null, null, null);
                         }
 
-                        a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host, client1.getPort());
+                        a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host.getHost(), host.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
                         break;
                     }
