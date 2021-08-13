@@ -50,7 +50,7 @@ public final class MessageManager {
             SocketAddress socketAddress = new InetSocketAddress(addresses[0], Integer.parseInt(addresses[1]));
             instance.heartbeatRunnable.setSocketAddress(socketAddress);
             instance.messageSendRunnable.setSocketAddress(socketAddress);
-            instance.messageReceiveRunnable.setSocketAddress(socketAddress);
+//            instance.messageReceiveRunnable.setSocketAddress(socketAddress);
 
             new Thread(() -> {
                 while (doLoop.get()) {

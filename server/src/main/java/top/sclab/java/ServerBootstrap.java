@@ -1,27 +1,28 @@
 package top.sclab.java;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
-import java.net.URI;
+import java.io.IOException;
+import java.net.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class ServerBootstrap {
 
     public static final String CLIENT_PREFIX = "client::";
 
-    public static void main(String[] args) {
+    private static final ScheduledThreadPoolExecutor poolExecutor = new ScheduledThreadPoolExecutor(2);
+
+    public static void main(String[] args) throws SocketException {
 
         int bufLength = 1024;
         DatagramPacket packet = new DatagramPacket(new byte[1024], bufLength);
 
-        DatagramSocket server = null;
         int udpServerPort = ServerConfig.getUDPServerPort();
-        try {
-            server = new DatagramSocket(udpServerPort);
-            System.out.printf("Server:%d is working...\n", udpServerPort);
+        DatagramSocket server = new DatagramSocket(udpServerPort);
+        System.out.printf("Server:%d is working...\n", udpServerPort);
 
+        try {
             InetSocketAddress client1 = null, client2 = null;
             Map<InetSocketAddress, URI> clientIpMap = new HashMap<>();
 
@@ -35,17 +36,19 @@ public class ServerBootstrap {
                     if (packet.getAddress().isLoopbackAddress()) {
                         break;
                     }
-                } else if ("h".equalsIgnoreCase(content)) {
-                    server.send(new DatagramPacket(new byte[]{'b'}, 1, packet.getSocketAddress()));
                 } else if (content.startsWith(CLIENT_PREFIX)) {
 
+                    if (client2 != null) {
+                        continue;
+                    }
+                    InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
                     String clientAddress = content.substring(CLIENT_PREFIX.length());
-                    clientIpMap.put((InetSocketAddress) packet.getSocketAddress(), new URI(clientAddress));
+                    clientIpMap.put(socketAddress, new URI(clientAddress));
 
                     if (client1 == null) {
-                        client1 = (InetSocketAddress) packet.getSocketAddress();
+                        client1 = socketAddress;
                     } else if (!packet.getSocketAddress().equals(client1)) {
-                        client2 = (InetSocketAddress) packet.getSocketAddress();
+                        client2 = socketAddress;
                     }
 
                     if (client2 != null) {
@@ -64,8 +67,22 @@ public class ServerBootstrap {
 
                         a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host.getHost(), host.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
-                        break;
                     }
+
+                    Runnable command = new Runnable() {
+
+                        private final DatagramPacket datagramPacket = new DatagramPacket(new byte[]{'b'}, 1, socketAddress);
+
+                        @Override
+                        public void run() {
+                            try {
+                                server.send(datagramPacket);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    };
+                    poolExecutor.scheduleAtFixedRate(command, 0, 15, TimeUnit.SECONDS);
                 }
             }
         } catch (Exception e) {
