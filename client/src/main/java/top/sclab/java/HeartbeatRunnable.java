@@ -11,24 +11,20 @@ public class HeartbeatRunnable implements Runnable {
 
     private final DatagramSocket client;
 
-    private SocketAddress socketAddress;
+    private DatagramPacket datagramPacket;
 
     public HeartbeatRunnable(DatagramSocket client) {
         this.client = client;
     }
 
     public void setSocketAddress(SocketAddress socketAddress) {
-        this.socketAddress = socketAddress;
-    }
-
-    public SocketAddress getSocketAddress() {
-        return socketAddress;
+        this.datagramPacket = new DatagramPacket(heartbeat, heartbeat.length, socketAddress);
     }
 
     @Override
     public void run() {
         try {
-            client.send(new DatagramPacket(heartbeat, heartbeat.length, socketAddress));
+            client.send(this.datagramPacket);
         } catch (IOException e) {
             e.printStackTrace();
         }

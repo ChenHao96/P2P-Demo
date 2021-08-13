@@ -37,6 +37,7 @@ public class ServerBootstrap {
                 } else if ("h".equalsIgnoreCase(content)) {
                     server.send(new DatagramPacket(new byte[]{'b'}, 1, packet.getSocketAddress()));
                 } else if (content.startsWith(CLIENT_PREFIX)) {
+
                     String clientIp = content.substring(CLIENT_PREFIX.length());
                     clientIpMap.put((InetSocketAddress) packet.getSocketAddress(), clientIp);
 
@@ -52,7 +53,7 @@ public class ServerBootstrap {
                             host = clientIpMap.get(client1);
                         }
 
-                        String a = String.format("connect::%s,%d", host, client2.getPort());
+                        String a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host, client2.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client1));
 
                         host = client1.getHostString();
@@ -60,7 +61,7 @@ public class ServerBootstrap {
                             host = clientIpMap.get(client2);
                         }
 
-                        a = String.format("connect::%s,%d", host, client1.getPort());
+                        a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host, client1.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
                         break;
                     }

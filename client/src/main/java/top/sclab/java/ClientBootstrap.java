@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 public class ClientBootstrap {
 
     private static final ScheduledThreadPoolExecutor poolExecutor = new ScheduledThreadPoolExecutor(
-            Runtime.getRuntime().availableProcessors());
+            Runtime.getRuntime().availableProcessors() * 3);
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -41,20 +41,30 @@ public class ClientBootstrap {
         }
 
         // p2p登录服务器
-        SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
+        SocketAddress socketAddress = new InetSocketAddress("8.136.189.243", 8880);
+//        SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
 
         DatagramSocket client = new DatagramSocket();
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        client.send(new DatagramPacket(clientIp.getBytes(), clientIp.length(), socketAddress));
+
+        String clientAddress = String.format("%s:%d", clientIp, client.getLocalPort());
+        client.send(new DatagramPacket(clientAddress.getBytes(), clientAddress.length(), socketAddress));
 
         HeartbeatRunnable heartbeatRunnable = new HeartbeatRunnable(client);
+        MessageManager.setHeartbeatRunnable(heartbeatRunnable);
         heartbeatRunnable.setSocketAddress(socketAddress);
 
-        MessageProcessRunnable messageProcessRunnable = new MessageProcessRunnable(client, countDownLatch);
-        messageProcessRunnable.setHeartbeatRunnable(heartbeatRunnable);
+        MessageReceiveRunnable messageProcessRunnable = new MessageReceiveRunnable(client);
+        MessageManager.setMessageReceiveRunnable(messageProcessRunnable);
+        messageProcessRunnable.setSocketAddress(socketAddress);
+
+        MessageSendRunnable clientHoleRunnable = new MessageSendRunnable(client);
+        MessageManager.setMessageSendRunnable(clientHoleRunnable);
+        clientHoleRunnable.setSocketAddress(socketAddress);
 
         poolExecutor.scheduleAtFixedRate(heartbeatRunnable, 10, 15, TimeUnit.SECONDS);
         poolExecutor.schedule(messageProcessRunnable, 0, TimeUnit.SECONDS);
+        poolExecutor.schedule(clientHoleRunnable, 0, TimeUnit.SECONDS);
 
         countDownLatch.await();
         client.close();
