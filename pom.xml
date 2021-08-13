@@ -6,10 +6,11 @@
 
     <groupId>org.example</groupId>
     <artifactId>p2p-server</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
     <modules>
         <module>server</module>
         <module>client</module>
+        <module>commons</module>
     </modules>
     <packaging>pom</packaging>
 
@@ -24,6 +25,14 @@
         <maven.assembly.version>3.3.0</maven.assembly.version>
         <maven.dependency.version>3.2.0</maven.dependency.version>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>commons</artifactId>
+            <version>1.0.2-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>

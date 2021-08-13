@@ -7,7 +7,7 @@ import java.net.SocketAddress;
 
 public class HeartbeatRunnable implements Runnable {
 
-    private final byte[] heartbeat = "h".getBytes();
+    private final byte[] heartbeat = "hb".getBytes();
 
     private final DatagramSocket client;
 

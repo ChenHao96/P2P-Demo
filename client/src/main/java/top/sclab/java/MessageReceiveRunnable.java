@@ -34,9 +34,9 @@ public class MessageReceiveRunnable implements Runnable {
             }
 
             String content = new String(receive.getData(), 0, receive.getLength());
-            System.out.printf("Receive Message: %s -> %s\n", receive.getSocketAddress(), content);
+            System.out.printf("Receive Message: %s -> {%s}\n", receive.getSocketAddress(), content);
 
-            if (MessageManager.CONNECT_CLOSE_VALUE.equals(content)) {
+            if (Constant.CONNECT_CLOSE_VALUE.equals(content)) {
                 break;
             } else {
                 MessageManager.addMessage(content);

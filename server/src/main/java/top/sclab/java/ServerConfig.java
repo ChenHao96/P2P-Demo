@@ -11,10 +11,14 @@ import java.util.Properties;
 public final class ServerConfig {
 
     private static final String CONFIG_FILE_PATH = "server.config.path";
+
     private static final String UDP_PORT_PROPERTY_KEY = "server.upd.port";
     private static final String UDP_VERSION_PROPERTY_KEY = "server.upd.version";
+    private static final String UPD_STARTUP_PROPERTY_KEY = "server.upd.startup";
+
     private static final String TCP_PORT_PROPERTY_KEY = "server.tcp.port";
     private static final String TCP_VERSION_PROPERTY_KEY = "server.tcp.version";
+    private static final String TCP_STARTUP_PROPERTY_KEY = "server.tcp.startup";
 
     private static final Properties properties;
 
@@ -51,30 +55,25 @@ public final class ServerConfig {
 
     private static final ServerConfig instance = new ServerConfig();
 
-    private Long udpPort;
+    private Integer udpPort;
 
     public static Integer getUDPServerPort() {
 
         if (instance.udpPort != null) {
-            return instance.udpPort.intValue();
+            return instance.udpPort;
         }
 
         synchronized (instance) {
             if (instance.udpPort != null) {
-                return instance.udpPort.intValue();
+                return instance.udpPort;
             }
 
             String port = System.getProperty(UDP_PORT_PROPERTY_KEY);
             if (port == null) {
-
-                String portPro = properties.getProperty(UDP_PORT_PROPERTY_KEY, "8880");
-                instance.udpPort = Long.parseLong(portPro);
-            } else {
-
-                instance.udpPort = Long.parseLong(port);
+                port = properties.getProperty(UDP_PORT_PROPERTY_KEY, "8880");
             }
 
-            return instance.udpPort.intValue();
+            return instance.udpPort = Integer.parseInt(port);
         }
     }
 
@@ -93,41 +92,54 @@ public final class ServerConfig {
 
             String version = System.getProperty(UDP_VERSION_PROPERTY_KEY);
             if (version == null) {
-
-                instance.udpVersion = properties.getProperty(UDP_VERSION_PROPERTY_KEY, "ipv4");
-            } else {
-
-                instance.udpVersion = version;
+                version = properties.getProperty(UDP_VERSION_PROPERTY_KEY, "ipv4");
             }
 
-            return instance.udpVersion;
+            return instance.udpVersion = version;
         }
     }
 
-    private Long tcpPort;
+    private Boolean udpStartup;
+
+    public static Boolean getUDPStartup() {
+
+        if (null != instance.udpStartup) {
+            return instance.udpStartup;
+        }
+
+        synchronized (instance) {
+            if (null != instance.udpStartup) {
+                return instance.udpStartup;
+            }
+
+            String startup = System.getProperty(UPD_STARTUP_PROPERTY_KEY);
+            if (startup == null) {
+                startup = properties.getProperty(UPD_STARTUP_PROPERTY_KEY, "true");
+            }
+
+            return instance.udpStartup = Boolean.getBoolean(startup);
+        }
+    }
+
+    private Integer tcpPort;
 
     public static Integer getTCPServerPort() {
 
         if (instance.tcpPort != null) {
-            return instance.tcpPort.intValue();
+            return instance.tcpPort;
         }
 
         synchronized (instance) {
             if (instance.tcpPort != null) {
-                return instance.tcpPort.intValue();
+                return instance.tcpPort;
             }
 
             String port = System.getProperty(TCP_PORT_PROPERTY_KEY);
             if (port == null) {
-
-                String portPro = properties.getProperty(TCP_PORT_PROPERTY_KEY, "8881");
-                instance.tcpPort = Long.parseLong(portPro);
-            } else {
-
-                instance.tcpPort = Long.parseLong(port);
+                port = properties.getProperty(TCP_PORT_PROPERTY_KEY, "8881");
             }
 
-            return instance.tcpPort.intValue();
+            return instance.tcpPort = Integer.parseInt(port);
         }
     }
 
@@ -136,24 +148,42 @@ public final class ServerConfig {
     public static String getTCPServerVersion() {
 
         if (null != instance.tcpVersion) {
-            return instance.udpVersion;
+            return instance.tcpVersion;
         }
 
         synchronized (instance) {
             if (null != instance.tcpVersion) {
-                return instance.udpVersion;
+                return instance.tcpVersion;
             }
 
             String version = System.getProperty(TCP_VERSION_PROPERTY_KEY);
             if (version == null) {
-
-                instance.tcpVersion = properties.getProperty(TCP_VERSION_PROPERTY_KEY, "ipv4");
-            } else {
-
-                instance.tcpVersion = version;
+                version = properties.getProperty(TCP_VERSION_PROPERTY_KEY, "ipv4");
             }
 
-            return instance.tcpVersion;
+            return instance.tcpVersion = version;
+        }
+    }
+
+    private Boolean tcpStartup;
+
+    public static Boolean getTCPStartup() {
+
+        if (null != instance.tcpStartup) {
+            return instance.tcpStartup;
+        }
+
+        synchronized (instance) {
+            if (null != instance.tcpStartup) {
+                return instance.tcpStartup;
+            }
+
+            String startup = System.getProperty(TCP_STARTUP_PROPERTY_KEY);
+            if (startup == null) {
+                startup = properties.getProperty(TCP_STARTUP_PROPERTY_KEY, "true");
+            }
+
+            return instance.tcpStartup = Boolean.getBoolean(startup);
         }
     }
 

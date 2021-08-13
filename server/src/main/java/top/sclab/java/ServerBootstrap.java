@@ -6,8 +6,6 @@ import java.util.Map;
 
 public class ServerBootstrap {
 
-    public static final String CLIENT_PREFIX = "client::";
-
     public static void main(String[] args) throws SocketException {
 
         int bufLength = 1024;
@@ -27,10 +25,10 @@ public class ServerBootstrap {
                 String content = new String(packet.getData(), 0, packet.getLength());
                 System.out.printf("Client address:%s msg:%s\n", packet.getSocketAddress(), content);
 
-                if (content.startsWith(CLIENT_PREFIX)) {
+                if (content.startsWith(Constant.CLIENT_PREFIX)) {
 
                     InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
-                    String clientAddress = content.substring(CLIENT_PREFIX.length());
+                    String clientAddress = content.substring(Constant.CLIENT_PREFIX.length());
                     clientIpMap.put(socketAddress, new URI(clientAddress));
 
                     if (client1 == null) {
@@ -45,7 +43,7 @@ public class ServerBootstrap {
                             host = new URI("udp", null, client2.getHostString(), client2.getPort(), null, null, null);
                         }
 
-                        String a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host.getHost(), host.getPort());
+                        String a = Constant.formatAddress(host);
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client1));
 
                         host = clientIpMap.get(client1);
@@ -53,7 +51,7 @@ public class ServerBootstrap {
                             host = new URI("udp", null, client1.getHostString(), client1.getPort(), null, null, null);
                         }
 
-                        a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host.getHost(), host.getPort());
+                        a = Constant.formatAddress(host);
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
                         break;
                     }

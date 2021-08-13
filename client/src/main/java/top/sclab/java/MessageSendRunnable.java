@@ -26,12 +26,13 @@ public class MessageSendRunnable implements Runnable {
             String message = "";
             try {
                 message = MessageManager.popMessage();
+                System.out.printf("Send Message: {%s} -> %s\n", message, socketAddress);
                 client.send(new DatagramPacket(message.getBytes(), message.length(), socketAddress));
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
 
-            if (MessageManager.CONNECT_CLOSE_VALUE.equals(message)) {
+            if (Constant.CONNECT_CLOSE_VALUE.equals(message)) {
                 break;
             }
         }
