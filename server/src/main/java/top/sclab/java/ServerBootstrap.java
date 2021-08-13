@@ -27,21 +27,23 @@ public class ServerBootstrap {
 
                 if (content.startsWith(Constant.CLIENT_PREFIX)) {
 
-                    URI clientUri = Constant.parsingAddress(content);
                     InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
-                    clientIpMap.put(socketAddress, clientUri);
 
                     if (client1 == null) {
                         client1 = socketAddress;
+                        URI clientUri = Constant.parsingAddress(content);
+                        clientIpMap.put(socketAddress, clientUri);
                     } else {
                         client2 = socketAddress;
+                        URI clientUri = Constant.parsingAddress(String.format("%s?client=true", content));
+                        clientIpMap.put(socketAddress, clientUri);
                     }
 
                     if (client2 != null) {
 
                         URI host = clientIpMap.get(client2);
                         if (!client2.getHostString().equals(client1.getHostString())) {
-                            host = Constant.parsingAddress(client2);
+                            host = Constant.parsingAddress(client2, "");
                         }
 
                         String p2p_address = Constant.formatAddress(host);
@@ -49,7 +51,7 @@ public class ServerBootstrap {
 
                         host = clientIpMap.get(client1);
                         if (!client1.getHostString().equals(client2.getHostString())) {
-                            host = Constant.parsingAddress(client1);
+                            host = Constant.parsingAddress(client1, "?client=true");
                         }
 
                         p2p_address = Constant.formatAddress(host);

@@ -16,7 +16,7 @@ public final class Constant {
     public static final String CONNECT_PONG_VALUE = PREFIX + "pong";
 
     public static String formatAddress(URI address) {
-        return String.format("%s%s", Constant.CLIENT_PREFIX, url(address.getHost(), address.getPort()));
+        return String.format("%s%s", Constant.CLIENT_PREFIX, address.toString());
     }
 
     public static URI parsingAddress(String address) {
@@ -24,12 +24,12 @@ public final class Constant {
         return URI.create(address);
     }
 
-    public static URI parsingAddress(InetSocketAddress addresses) {
-        return URI.create(url(addresses.getHostString(), addresses.getPort()));
+    public static URI parsingAddress(InetSocketAddress addresses, String param) {
+        return URI.create(url(addresses.getHostString(), addresses.getPort(), param));
     }
 
-    private static String url(String host, int port) {
-        return String.format("udp://%s:%d", host, port);
+    private static String url(String host, int port, String param) {
+        return String.format("udp://%s:%d%s", host, port, param);
     }
 
     private Constant() {

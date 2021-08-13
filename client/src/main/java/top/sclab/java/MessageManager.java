@@ -45,8 +45,9 @@ public final class MessageManager {
             instance.heartbeatRunnable.setSocketAddress(socketAddress);
             instance.messageSendRunnable.setSocketAddress(socketAddress);
 
+            String param = uri.getQuery();
             // 发送ping/pong消息(被连接端延时)
-            int initialDelay = 1500;
+            int initialDelay = param == null ? 0 : 1000;
 
             instance.runnableFuture = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(
                     () -> queue.add(Constant.CONNECT_PING_VALUE), initialDelay, 150, TimeUnit.MILLISECONDS);
