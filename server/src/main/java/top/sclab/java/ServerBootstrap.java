@@ -38,9 +38,6 @@ public class ServerBootstrap {
                     }
                 } else if (content.startsWith(CLIENT_PREFIX)) {
 
-                    if (client2 != null) {
-                        continue;
-                    }
                     InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
                     String clientAddress = content.substring(CLIENT_PREFIX.length());
                     clientIpMap.put(socketAddress, new URI(clientAddress));
@@ -50,6 +47,21 @@ public class ServerBootstrap {
                     } else if (!packet.getSocketAddress().equals(client1)) {
                         client2 = socketAddress;
                     }
+
+                    Runnable command = new Runnable() {
+
+                        private final DatagramPacket datagramPacket = new DatagramPacket(new byte[]{'b'}, 1, socketAddress);
+
+                        @Override
+                        public void run() {
+                            try {
+                                server.send(datagramPacket);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    };
+                    poolExecutor.scheduleAtFixedRate(command, 0, 15, TimeUnit.SECONDS);
 
                     if (client2 != null) {
                         URI host = clientIpMap.get(client2);
@@ -67,22 +79,8 @@ public class ServerBootstrap {
 
                         a = String.format("connect::%s%s,%d", CLIENT_PREFIX, host.getHost(), host.getPort());
                         server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
+                        break;
                     }
-
-                    Runnable command = new Runnable() {
-
-                        private final DatagramPacket datagramPacket = new DatagramPacket(new byte[]{'b'}, 1, socketAddress);
-
-                        @Override
-                        public void run() {
-                            try {
-                                server.send(datagramPacket);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    poolExecutor.scheduleAtFixedRate(command, 0, 15, TimeUnit.SECONDS);
                 }
             }
         } catch (Exception e) {
