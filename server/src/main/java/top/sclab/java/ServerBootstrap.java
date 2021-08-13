@@ -48,21 +48,6 @@ public class ServerBootstrap {
                         client2 = socketAddress;
                     }
 
-                    Runnable command = new Runnable() {
-
-                        private final DatagramPacket datagramPacket = new DatagramPacket(new byte[]{'b'}, 1, socketAddress);
-
-                        @Override
-                        public void run() {
-                            try {
-                                server.send(datagramPacket);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    poolExecutor.scheduleAtFixedRate(command, 0, 15, TimeUnit.SECONDS);
-
                     if (client2 != null) {
                         URI host = clientIpMap.get(client2);
                         if (!client2.getHostString().equals(client1.getHostString())) {
