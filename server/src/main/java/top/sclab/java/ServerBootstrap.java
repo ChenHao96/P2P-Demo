@@ -1,17 +1,12 @@
 package top.sclab.java;
 
-import java.io.IOException;
 import java.net.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 public class ServerBootstrap {
 
     public static final String CLIENT_PREFIX = "client::";
-
-    private static final ScheduledThreadPoolExecutor poolExecutor = new ScheduledThreadPoolExecutor(2);
 
     public static void main(String[] args) throws SocketException {
 
