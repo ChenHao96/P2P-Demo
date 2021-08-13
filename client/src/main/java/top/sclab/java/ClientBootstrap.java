@@ -9,8 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ClientBootstrap {
 
-    private static final ScheduledThreadPoolExecutor poolExecutor = new ScheduledThreadPoolExecutor(
-            Runtime.getRuntime().availableProcessors() * 3);
+    private static final ScheduledThreadPoolExecutor poolExecutor = new ScheduledThreadPoolExecutor(1);
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -36,16 +35,16 @@ public class ClientBootstrap {
 
             InetAddress addr = face.getInetAddresses().nextElement();
             System.out.printf("主机名称: %s\n", addr.getHostName());
-            System.out.printf("网络地址: %s\n", addr.getHostAddress());
             clientIp = addr.getHostAddress();
         }
 
         // p2p登录服务器
-//        SocketAddress socketAddress = new InetSocketAddress("8.136.189.243", 8880);
+
         SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
 
         DatagramSocket client = new DatagramSocket();
         CountDownLatch countDownLatch = new CountDownLatch(1);
+        System.out.printf("网络地址: %s:%d\n", clientIp, client.getLocalPort());
 
         String clientAddress = String.format("client::udp://%s:%d", clientIp, client.getLocalPort());
         client.send(new DatagramPacket(clientAddress.getBytes(), clientAddress.length(), socketAddress));
@@ -53,18 +52,23 @@ public class ClientBootstrap {
         HeartbeatRunnable heartbeatRunnable = new HeartbeatRunnable(client);
         MessageManager.setHeartbeatRunnable(heartbeatRunnable);
         heartbeatRunnable.setSocketAddress(socketAddress);
+        poolExecutor.scheduleAtFixedRate(heartbeatRunnable, 10, 15, TimeUnit.SECONDS);
 
         MessageReceiveRunnable messageProcessRunnable = new MessageReceiveRunnable(client);
         MessageManager.setMessageReceiveRunnable(messageProcessRunnable);
         messageProcessRunnable.setSocketAddress(socketAddress);
 
+        Thread read = new Thread(messageProcessRunnable);
+        read.setDaemon(true);
+        read.start();
+
         MessageSendRunnable clientHoleRunnable = new MessageSendRunnable(client);
         MessageManager.setMessageSendRunnable(clientHoleRunnable);
         clientHoleRunnable.setSocketAddress(socketAddress);
 
-        poolExecutor.scheduleAtFixedRate(heartbeatRunnable, 10, 15, TimeUnit.SECONDS);
-        poolExecutor.schedule(messageProcessRunnable, 0, TimeUnit.SECONDS);
-        poolExecutor.schedule(clientHoleRunnable, 0, TimeUnit.SECONDS);
+        Thread write = new Thread(clientHoleRunnable);
+        write.setDaemon(true);
+        write.start();
 
         countDownLatch.await();
         client.close();

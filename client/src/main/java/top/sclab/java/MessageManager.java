@@ -3,6 +3,7 @@ package top.sclab.java;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MessageManager {
 
@@ -38,6 +39,8 @@ public final class MessageManager {
         instance.messageSendRunnable = messageSendRunnable;
     }
 
+    private static final AtomicBoolean doLoop = new AtomicBoolean(true);
+
     public static void addMessage(String message) {
         if ("h".equals(message)) {
             queue.add("b");
@@ -49,13 +52,22 @@ public final class MessageManager {
             instance.messageSendRunnable.setSocketAddress(socketAddress);
             instance.messageReceiveRunnable.setSocketAddress(socketAddress);
 
-            // TODO: 开启线程
+            new Thread(() -> {
+                while (doLoop.get()) {
+                    queue.add(CONNECT_PING_VALUE);
+                    try {
+                        Thread.sleep(150);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
         } else if (CONNECT_PING_VALUE.equals(message)) {
-
             // TODO: 读取收到包的地址
             // TODO: 心跳，发送地址修改
+            queue.add(CONNECT_PONG_VALUE);
         } else if (CONNECT_PONG_VALUE.equals(message)) {
-            // TODO: 关闭线程
+            doLoop.set(false);
         }
     }
 
