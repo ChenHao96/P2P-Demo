@@ -35,7 +35,9 @@ public class ClientBootstrap {
         }
 
         DatagramSocket client = new DatagramSocket();
-        SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
+        String host = System.getProperty("host", "localhost");
+        String port = System.getProperty("port", "8880");
+        SocketAddress socketAddress = new InetSocketAddress(host, Integer.parseInt(port));
 
         if (!"".equals(clientIp)) {
 
