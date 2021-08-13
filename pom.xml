@@ -26,13 +26,15 @@
         <maven.dependency.version>3.2.0</maven.dependency.version>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.example</groupId>
-            <artifactId>commons</artifactId>
-            <version>1.0.2-SNAPSHOT</version>
-        </dependency>
-    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.example</groupId>
+                <artifactId>commons</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>
