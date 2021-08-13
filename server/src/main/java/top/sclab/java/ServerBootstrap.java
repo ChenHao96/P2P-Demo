@@ -32,11 +32,7 @@ public class ServerBootstrap {
                 String content = new String(packet.getData(), 0, packet.getLength());
                 System.out.printf("Client address:%s msg:%s\n", packet.getSocketAddress(), content);
 
-                if ("shutdown".equalsIgnoreCase(content)) {
-                    if (packet.getAddress().isLoopbackAddress()) {
-                        break;
-                    }
-                } else if (content.startsWith(CLIENT_PREFIX)) {
+                if (content.startsWith(CLIENT_PREFIX)) {
 
                     InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
                     String clientAddress = content.substring(CLIENT_PREFIX.length());
