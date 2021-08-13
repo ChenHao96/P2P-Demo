@@ -27,32 +27,33 @@ public class ServerBootstrap {
 
                 if (content.startsWith(Constant.CLIENT_PREFIX)) {
 
+                    URI clientUri = Constant.parsingAddress(content);
                     InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
-                    String clientAddress = content.substring(Constant.CLIENT_PREFIX.length());
-                    clientIpMap.put(socketAddress, new URI(clientAddress));
+                    clientIpMap.put(socketAddress, clientUri);
 
                     if (client1 == null) {
                         client1 = socketAddress;
-                    } else if (!packet.getSocketAddress().equals(client1)) {
+                    } else {
                         client2 = socketAddress;
                     }
 
                     if (client2 != null) {
+
                         URI host = clientIpMap.get(client2);
                         if (!client2.getHostString().equals(client1.getHostString())) {
-                            host = new URI("udp", null, client2.getHostString(), client2.getPort(), null, null, null);
+                            host = Constant.parsingAddress(client2);
                         }
 
-                        String a = Constant.formatAddress(host);
-                        server.send(new DatagramPacket(a.getBytes(), a.length(), client1));
+                        String p2p_address = Constant.formatAddress(host);
+                        server.send(new DatagramPacket(p2p_address.getBytes(), p2p_address.length(), client1));
 
                         host = clientIpMap.get(client1);
                         if (!client1.getHostString().equals(client2.getHostString())) {
-                            host = new URI("udp", null, client1.getHostString(), client1.getPort(), null, null, null);
+                            host = Constant.parsingAddress(client1);
                         }
 
-                        a = Constant.formatAddress(host);
-                        server.send(new DatagramPacket(a.getBytes(), a.length(), client2));
+                        p2p_address = Constant.formatAddress(host);
+                        server.send(new DatagramPacket(p2p_address.getBytes(), p2p_address.length(), client2));
                         break;
                     }
                 }

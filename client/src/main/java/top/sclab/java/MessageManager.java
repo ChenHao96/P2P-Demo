@@ -2,6 +2,7 @@ package top.sclab.java;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.util.concurrent.*;
 
 public final class MessageManager {
@@ -38,9 +39,9 @@ public final class MessageManager {
         if (Constant.CONNECT_CLOSE_VALUE.equals(message)) {
             instance.countDownLatch.countDown();
         } else if (message.startsWith(Constant.CLIENT_PREFIX)) {
-            String[] addresses = message.substring(Constant.CLIENT_PREFIX.length()).split(",");
 
-            SocketAddress socketAddress = new InetSocketAddress(addresses[0], Integer.parseInt(addresses[1]));
+            URI uri = Constant.parsingAddress(message);
+            SocketAddress socketAddress = new InetSocketAddress(uri.getHost(), uri.getPort());
             instance.heartbeatRunnable.setSocketAddress(socketAddress);
             instance.messageSendRunnable.setSocketAddress(socketAddress);
 

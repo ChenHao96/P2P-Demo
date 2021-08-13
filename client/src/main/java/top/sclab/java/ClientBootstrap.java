@@ -40,7 +40,7 @@ public class ClientBootstrap {
         if (!"".equals(clientIp)) {
 
             System.out.printf("网络地址: %s:%d\n", clientIp, client.getLocalPort());
-            String clientAddress = String.format("client::udp://%s:%d", clientIp, client.getLocalPort());
+            String clientAddress = Constant.formatAddress(URI.create(String.format("udp://%s:%d", clientIp, client.getLocalPort())));
             client.send(new DatagramPacket(clientAddress.getBytes(), clientAddress.length(), socketAddress));
         }
 
