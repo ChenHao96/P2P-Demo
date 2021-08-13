@@ -39,7 +39,6 @@ public class ClientBootstrap {
         }
 
         // p2p登录服务器
-
         SocketAddress socketAddress = new InetSocketAddress("localhost", 8880);
 
         DatagramSocket client = new DatagramSocket();
@@ -58,13 +57,13 @@ public class ClientBootstrap {
         MessageManager.setMessageReceiveRunnable(messageProcessRunnable);
         messageProcessRunnable.setSocketAddress(socketAddress);
 
-        Thread read = new Thread(messageProcessRunnable);
-        read.setDaemon(true);
-        read.start();
-
         MessageSendRunnable clientHoleRunnable = new MessageSendRunnable(client);
         MessageManager.setMessageSendRunnable(clientHoleRunnable);
         clientHoleRunnable.setSocketAddress(socketAddress);
+
+        Thread read = new Thread(messageProcessRunnable);
+        read.setDaemon(true);
+        read.start();
 
         Thread write = new Thread(clientHoleRunnable);
         write.setDaemon(true);
