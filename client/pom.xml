@@ -29,7 +29,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>top.sclab.java.ServerBootstrap</mainClass>
+                            <mainClass>top.sclab.java.ClientBootstrap</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
