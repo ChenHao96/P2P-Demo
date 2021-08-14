@@ -13,7 +13,6 @@ public final class ServerConfig {
     private static final String CONFIG_FILE_PATH = "server.config.path";
     private static final String VERSION_PROPERTY_KEY = "server.version";
     private static final String ENABLE_COUNT_PROPERTY_KEY = "server.enableCount";
-    private static final String MESSAGE_PROCESSORS_PROPERTY_KEY = "server.message.processors";
 
     private static final String UDP_PORT_PROPERTY_KEY = "server.upd.port";
     private static final String UPD_STARTUP_PROPERTY_KEY = "server.upd.startup";
@@ -182,33 +181,6 @@ public final class ServerConfig {
             }
 
             return instance.enableCount = Math.max(Integer.parseInt(count), 2);
-        }
-    }
-
-    private Integer messageProcessors = null;
-
-    /**
-     * 获取消息处理器线程数
-     *
-     * @return 处理器线程数
-     */
-    public static Integer getMessageProcessors() {
-
-        if (instance.messageProcessors != null) {
-            return instance.messageProcessors;
-        }
-
-        synchronized (instance) {
-            if (instance.messageProcessors != null) {
-                return instance.messageProcessors;
-            }
-
-            String processors = System.getProperty(MESSAGE_PROCESSORS_PROPERTY_KEY);
-            if (processors == null) {
-                processors = properties.getProperty(MESSAGE_PROCESSORS_PROPERTY_KEY, "3");
-            }
-
-            return instance.messageProcessors = Math.max(Integer.parseInt(processors), 3);
         }
     }
 

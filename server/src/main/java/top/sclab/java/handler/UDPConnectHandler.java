@@ -2,8 +2,8 @@ package top.sclab.java.handler;
 
 import top.sclab.java.Constant;
 import top.sclab.java.ServerConfig;
-import top.sclab.java.service.MessageProcessService;
-import top.sclab.java.service.UDPMessageProcess;
+import top.sclab.java.service.ConnectHandler;
+import top.sclab.java.service.MessageHandler;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -14,18 +14,14 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
-public class UDPConnectHandler implements HandlerLife, Runnable {
-
-    private ScheduledThreadPoolExecutor poolExecutor;
+public class UDPConnectHandler implements ConnectHandler, Runnable {
 
     private ExecutorService threadPoolExecutor;
 
     private Set<InetSocketAddress> clientConnectSet;
 
-    private MessageProcessService messageProcessService;
+    private MessageHandler messageProcessService;
 
     private DatagramSocket server;
 
@@ -36,31 +32,35 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
     private volatile boolean activated = false;
 
     @Override
-    public void init() throws SocketException {
+    public void init() {
 
         if (ServerConfig.getUDPStartup() && !initialized && !activated) {
 
             int enableCount = ServerConfig.getEnableCount();
             int udpServerPort = ServerConfig.getUDPServerPort();
-            server = new DatagramSocket(udpServerPort);
+            try {
+                server = new DatagramSocket(udpServerPort);
+            } catch (SocketException e) {
+                throw new RuntimeException(e);
+            }
 
             float loadFactor = 0.75f;
             int initialCapacity = (int) (enableCount / loadFactor) + 1;
-
-            poolExecutor = new ScheduledThreadPoolExecutor(enableCount);
             threadPoolExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
             if (clientConnectSet == null) {
                 clientConnectSet = new HashSet<>(initialCapacity, loadFactor);
             }
 
-            ServiceLoader<MessageProcessService> consolePrintStreams = ServiceLoader.load(MessageProcessService.class);
-            Iterator<MessageProcessService> iterator = consolePrintStreams.iterator();
+            ServiceLoader<MessageHandler> consolePrintStreams = ServiceLoader.load(MessageHandler.class);
+            Iterator<MessageHandler> iterator = consolePrintStreams.iterator();
             if (iterator.hasNext()) {
                 messageProcessService = iterator.next();
             } else {
-                messageProcessService = new UDPMessageProcess();
+                messageProcessService = new UDPBaseMessageHandler();
             }
+            messageProcessService.setUdpServer(server);
+            messageProcessService.setUdpAddresses(clientConnectSet);
 
             byte[] buf = new byte[1024];
             if (packet == null) {
@@ -71,7 +71,6 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
         }
     }
 
-    @Override
     public boolean startup() {
 
         if (ServerConfig.getUDPStartup()) {
@@ -94,7 +93,6 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
     }
 
     private static final byte[] close = new byte[]{Constant.close};
-    private static final byte[] heartbeat = new byte[]{Constant.heartbeat};
     private static final byte[] tooManyConnect = new byte[]{Constant.tooManyConnect};
 
     @Override
@@ -127,48 +125,38 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
                     continue;
                 }
 
-                // heartbeat 延时10秒执行 每30秒执行
-                poolExecutor.scheduleAtFixedRate(() -> {
-                    try {
-                        server.send(new DatagramPacket(heartbeat, heartbeat.length, socketAddress));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }, 10, 30, TimeUnit.SECONDS);
+                clientConnectSet.add(socketAddress);
             }
 
-            threadPoolExecutor.submit(() -> messageProcessService.udpMessageProcess(server, clientConnectSet, data));
+            threadPoolExecutor.submit(() -> messageProcessService.udpMessageProcess(socketAddress, data));
         }
     }
 
     @Override
-    public void shutdown() {
+    public void destroy() {
 
-        poolExecutor.shutdown();
-        try {
-            if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-                poolExecutor.shutdownNow();
-                if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-                    System.err.println("线程池无法终止");
-                }
-            }
-        } catch (InterruptedException ie) {
-            poolExecutor.shutdownNow();
-        } finally {
-            poolExecutor = null;
-        }
+        messageProcessService.destroy();
 
-        clientConnectSet.forEach(address -> {
+        Iterator<InetSocketAddress> iterator = clientConnectSet.iterator();
+        while (iterator.hasNext()) {
+            InetSocketAddress address = iterator.next();
             try {
                 server.send(new DatagramPacket(close, close.length, address));
             } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+                iterator.remove();
             }
-        });
-        clientConnectSet.clear();
+        }
 
-        safeClose(server);
-        server = null;
+        if (server != null) {
+            try {
+                server.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            server = null;
+        }
 
         activated = initialized = false;
         System.out.println("UDP Server 关闭. 再见!");
