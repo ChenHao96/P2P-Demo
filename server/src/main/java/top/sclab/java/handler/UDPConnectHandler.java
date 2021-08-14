@@ -46,11 +46,11 @@ public class UDPConnectHandler implements ConnectHandler, Runnable {
 
             float loadFactor = 0.75f;
             int initialCapacity = (int) (enableCount / loadFactor) + 1;
-            threadPoolExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-
             if (clientConnectSet == null) {
                 clientConnectSet = new HashSet<>(initialCapacity, loadFactor);
             }
+
+            threadPoolExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
             ServiceLoader<MessageHandler> consolePrintStreams = ServiceLoader.load(MessageHandler.class);
             Iterator<MessageHandler> iterator = consolePrintStreams.iterator();
