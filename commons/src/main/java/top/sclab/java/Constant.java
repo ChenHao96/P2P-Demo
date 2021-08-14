@@ -5,6 +5,8 @@ import java.net.URI;
 
 public final class Constant {
 
+    public static final byte[] heartbeat = "hb".getBytes();
+
     private static final String PREFIX = "connect::";
 
     public static final String CLIENT_PREFIX = PREFIX + "client::";
@@ -30,6 +32,14 @@ public final class Constant {
 
     private static String url(String host, int port, String param) {
         return String.format("udp://%s:%d%s", host, port, param);
+    }
+
+    public static byte[] clientCloseMessage() {
+        return "close".getBytes();
+    }
+
+    public static byte[] tooManyConnectMessage() {
+        return "tooManyConnect".getBytes();
     }
 
     private Constant() {

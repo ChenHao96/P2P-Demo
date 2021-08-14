@@ -11,6 +11,7 @@
         <module>server</module>
         <module>client</module>
         <module>commons</module>
+        <module>DemoServer</module>
     </modules>
     <packaging>pom</packaging>
 
@@ -31,6 +32,12 @@
             <dependency>
                 <groupId>org.example</groupId>
                 <artifactId>commons</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.example</groupId>
+                <artifactId>server</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
