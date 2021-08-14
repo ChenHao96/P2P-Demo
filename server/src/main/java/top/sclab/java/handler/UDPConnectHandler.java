@@ -3,7 +3,7 @@ package top.sclab.java.handler;
 import top.sclab.java.Constant;
 import top.sclab.java.ServerConfig;
 import top.sclab.java.service.MessageProcessService;
-import top.sclab.java.service.UDPMessageProcessService;
+import top.sclab.java.service.UDPMessageProcess;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -11,9 +11,9 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -21,7 +21,11 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
 
     private ScheduledThreadPoolExecutor poolExecutor;
 
-    private Map<InetSocketAddress, MessageProcessService> clientConnectMap;
+    private ExecutorService threadPoolExecutor;
+
+    private Set<InetSocketAddress> clientConnectSet;
+
+    private MessageProcessService messageProcessService;
 
     private DatagramSocket server;
 
@@ -38,16 +42,25 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
 
             int enableCount = ServerConfig.getEnableCount();
             int udpServerPort = ServerConfig.getUDPServerPort();
+            server = new DatagramSocket(udpServerPort);
 
             float loadFactor = 0.75f;
             int initialCapacity = (int) (enableCount / loadFactor) + 1;
 
             poolExecutor = new ScheduledThreadPoolExecutor(enableCount);
-            if (clientConnectMap == null) {
-                clientConnectMap = new HashMap<>(initialCapacity, loadFactor);
+            threadPoolExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+
+            if (clientConnectSet == null) {
+                clientConnectSet = new HashSet<>(initialCapacity, loadFactor);
             }
 
-            server = new DatagramSocket(udpServerPort);
+            ServiceLoader<MessageProcessService> consolePrintStreams = ServiceLoader.load(MessageProcessService.class);
+            Iterator<MessageProcessService> iterator = consolePrintStreams.iterator();
+            if (iterator.hasNext()) {
+                messageProcessService = iterator.next();
+            } else {
+                messageProcessService = new UDPMessageProcess();
+            }
 
             byte[] buf = new byte[1024];
             if (packet == null) {
@@ -80,6 +93,10 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
         return false;
     }
 
+    private static final byte[] close = new byte[]{Constant.close};
+    private static final byte[] heartbeat = new byte[]{Constant.heartbeat};
+    private static final byte[] tooManyConnect = new byte[]{Constant.tooManyConnect};
+
     @Override
     public void run() {
 
@@ -99,29 +116,28 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
             System.out.printf("收到数据 %s -> %s\n", packet.getSocketAddress(), Arrays.toString(data));
 
             InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
-            MessageProcessService service = clientConnectMap.get(socketAddress);
-            if (null == service) {
+            if (!clientConnectSet.contains(socketAddress)) {
 
                 // 超过最大连接数量时通知客户端选择其他连接
-                if (clientConnectMap.size() >= ServerConfig.getEnableCount()) {
-                    byte[] msg = Constant.tooManyConnectMessage();
+                if (clientConnectSet.size() >= ServerConfig.getEnableCount()) {
                     try {
-                        server.send(new DatagramPacket(msg, msg.length, socketAddress));
+                        server.send(new DatagramPacket(tooManyConnect, tooManyConnect.length, socketAddress));
                     } catch (IOException ignored) {
                     }
                     continue;
                 }
 
-                service = new UDPMessageProcessService(server, socketAddress);
-                clientConnectMap.put(socketAddress, service);
-
                 // heartbeat 延时10秒执行 每30秒执行
-                MessageProcessService finalService = service;
-                poolExecutor.scheduleAtFixedRate(() -> finalService.putMessage(Constant.heartbeat)
-                        , 10, 30, TimeUnit.SECONDS);
+                poolExecutor.scheduleAtFixedRate(() -> {
+                    try {
+                        server.send(new DatagramPacket(heartbeat, heartbeat.length, socketAddress));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }, 10, 30, TimeUnit.SECONDS);
             }
 
-            service.putMessage(data);
+            threadPoolExecutor.submit(() -> messageProcessService.udpMessageProcess(server, clientConnectSet, data));
         }
     }
 
@@ -142,11 +158,14 @@ public class UDPConnectHandler implements HandlerLife, Runnable {
             poolExecutor = null;
         }
 
-        clientConnectMap.forEach((address, messageService) -> {
-            messageService.putMessage(Constant.clientCloseMessage());
-            messageService.destroyProcess();
+        clientConnectSet.forEach(address -> {
+            try {
+                server.send(new DatagramPacket(close, close.length, address));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         });
-        clientConnectMap.clear();
+        clientConnectSet.clear();
 
         safeClose(server);
         server = null;
