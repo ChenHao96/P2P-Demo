@@ -58,9 +58,10 @@ public class UDPBaseMessageHandler implements MessageHandler {
             while (iterator.hasNext()) {
 
                 Map.Entry<InetSocketAddress, UDPReceiveItem> entry = iterator.next();
-                long lastTime = entry.getValue().getLastUpdateTime();
-                if (Math.abs(currentTime - lastTime) > TimeUnit.SECONDS.toMillis(30)) {
-                    poolExecutor.remove(entry.getValue().getFuture());
+                UDPReceiveItem item = entry.getValue();
+                long lastTime = item.getLastUpdateTime();
+                if (Math.abs(currentTime - lastTime) >= TimeUnit.MINUTES.toMillis(1)) {
+                    poolExecutor.remove(item.getFuture());
                     addresses.remove(entry.getKey());
                     iterator.remove();
                 }
@@ -75,8 +76,10 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
             ByteBuffer byteBuffer = ByteBuffer.wrap(data);
             byte cmd = byteBuffer.get();
-            switch (cmd) {
 
+            // TODO: 验证链接token
+
+            switch (cmd) {
                 case Constant.heartbeat:
                     heartbeat(current, byteBuffer);
                     break;
@@ -88,6 +91,9 @@ public class UDPBaseMessageHandler implements MessageHandler {
                     break;
                 case Constant.forward:
                     forward(current, byteBuffer);
+                    break;
+                default:
+                    other(cmd, current, byteBuffer);
                     break;
             }
         }
@@ -111,17 +117,31 @@ public class UDPBaseMessageHandler implements MessageHandler {
     }
 
     public void heartbeat(InetSocketAddress current, ByteBuffer byteBuffer) {
-        // TODO:
+        UDPReceiveItem receiveItem = clientMap.get(current);
+        if (receiveItem != null) {
+            receiveItem.setLastUpdateTime(System.currentTimeMillis());
+        }
     }
 
     public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
         // TODO:
+        int ip = byteBuffer.getInt();
+        int port = byteBuffer.getInt();
+
     }
 
     public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
 
+        byte[] data = byteBuffer.array();
+        DatagramPacket packet = new DatagramPacket(data, data.length, current);
         addresses.forEach(address -> {
-
+            
+            packet.setSocketAddress(address);
+            try {
+                server.send(packet);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         });
     }
 
@@ -146,5 +166,9 @@ public class UDPBaseMessageHandler implements MessageHandler {
         udpReceiveItem.setLastUpdateTime(System.currentTimeMillis());
         udpReceiveItem.setFuture(future);
         clientMap.put(current, udpReceiveItem);
+    }
+
+    public void other(byte cmd, InetSocketAddress current, ByteBuffer byteBuffer) {
+
     }
 }
