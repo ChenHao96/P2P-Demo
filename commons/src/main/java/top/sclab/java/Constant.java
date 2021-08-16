@@ -39,6 +39,7 @@ public final class Constant {
     public static final byte heartbeat = 'h';
     public static final byte broadcast = 'b';
     public static final byte tooManyConnect = 't';
+    public static final byte other = 'o';
 
     private Constant() {
     }

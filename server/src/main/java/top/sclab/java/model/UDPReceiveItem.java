@@ -9,6 +9,8 @@ public class UDPReceiveItem implements Serializable {
 
     private long lastUpdateTime;
 
+    private int token;
+
     public RunnableScheduledFuture<?> getFuture() {
         return future;
     }
@@ -23,5 +25,13 @@ public class UDPReceiveItem implements Serializable {
 
     public void setLastUpdateTime(long lastUpdateTime) {
         this.lastUpdateTime = lastUpdateTime;
+    }
+
+    public int getToken() {
+        return token;
+    }
+
+    public void setToken(int token) {
+        this.token = token;
     }
 }

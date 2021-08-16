@@ -1,5 +1,6 @@
 package top.sclab.java.handler;
 
+import top.sclab.java.AddressUtil;
 import top.sclab.java.Constant;
 import top.sclab.java.ServerConfig;
 import top.sclab.java.model.UDPReceiveItem;
@@ -10,10 +11,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.RunnableScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -22,16 +20,11 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     private ScheduledThreadPoolExecutor poolExecutor;
 
-    private Set<InetSocketAddress> addresses;
-
     private Map<InetSocketAddress, UDPReceiveItem> clientMap;
 
     private DatagramSocket server;
 
-    @Override
-    public void setUdpAddresses(Set<InetSocketAddress> addresses) {
-        this.addresses = addresses;
-    }
+    private List<Integer> clientTokens;
 
     @Override
     public void setUdpServer(DatagramSocket server) {
@@ -50,6 +43,15 @@ public class UDPBaseMessageHandler implements MessageHandler {
             clientMap = new HashMap<>(initialCapacity, loadFactor);
         }
 
+        if (clientTokens == null) {
+            clientTokens = new ArrayList<>(enableCount);
+        } else {
+            clientTokens.clear();
+        }
+        for (int i = 0; i < enableCount; i++) {
+            clientTokens.add(i + 1);
+        }
+
         poolExecutor.scheduleAtFixedRate(() -> {
 
             final long currentTime = System.currentTimeMillis();
@@ -61,9 +63,10 @@ public class UDPBaseMessageHandler implements MessageHandler {
                 UDPReceiveItem item = entry.getValue();
                 long lastTime = item.getLastUpdateTime();
                 if (Math.abs(currentTime - lastTime) >= TimeUnit.MINUTES.toMillis(1)) {
+
                     poolExecutor.remove(item.getFuture());
-                    addresses.remove(entry.getKey());
                     iterator.remove();
+                    clientTokens.add(item.getToken());
                 }
             }
         }, 0, 1, TimeUnit.MINUTES);
@@ -74,33 +77,39 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
         if (data != null && data.length > 0) {
 
-            ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-            byte cmd = byteBuffer.get();
+            int offset = 0;
+            int token = data[offset++] & AddressUtil.UBYTE;
 
-            // TODO: 验证链接token
+            UDPReceiveItem udpReceiveItem = clientMap.get(current);
+            if (udpReceiveItem.getToken() != token) {
+                return;
+            }
 
-            switch (cmd) {
+            switch (data[offset++]) {
                 case Constant.heartbeat:
-                    heartbeat(current, byteBuffer);
+                    heartbeat(current, offset, data);
                     break;
                 case Constant.connect:
-                    connect(current, byteBuffer);
+                    connect(current, offset, data);
                     break;
                 case Constant.broadcast:
-                    broadcast(current, byteBuffer);
+                    broadcast(current, offset, data);
                     break;
                 case Constant.forward:
-                    forward(current, byteBuffer);
+                    forward(current, offset, data);
                     break;
-                default:
-                    other(cmd, current, byteBuffer);
+                case Constant.other:
+                    other(current, offset, data);
                     break;
             }
         }
     }
 
+    private static final byte[] close = new byte[]{Constant.close};
+
     @Override
     public void destroy() {
+
         poolExecutor.shutdown();
         try {
             if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
@@ -114,30 +123,60 @@ public class UDPBaseMessageHandler implements MessageHandler {
         } finally {
             poolExecutor = null;
         }
+
+        Set<Map.Entry<InetSocketAddress, UDPReceiveItem>> entries = clientMap.entrySet();
+        Iterator<Map.Entry<InetSocketAddress, UDPReceiveItem>> iterator = entries.iterator();
+        while (iterator.hasNext()) {
+            InetSocketAddress address = iterator.next().getKey();
+            try {
+                server.send(new DatagramPacket(close, close.length, address));
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                iterator.remove();
+            }
+        }
     }
 
-    public void heartbeat(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void heartbeat(InetSocketAddress current, final int offset, final byte[] data) {
+
         UDPReceiveItem receiveItem = clientMap.get(current);
         if (receiveItem != null) {
+
             receiveItem.setLastUpdateTime(System.currentTimeMillis());
         }
     }
 
-    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
-        // TODO:
-        int ip = byteBuffer.getInt();
-        int port = byteBuffer.getInt();
+    public void forward(InetSocketAddress current, final int offset, final byte[] data) {
 
+        ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
+        final String host = AddressUtil.int2IP(byteBuffer.getInt());
+        int port = byteBuffer.getShort() & AddressUtil.USHORT;
+        InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
+
+        byteBuffer.putInt(offset, AddressUtil.ipToInt(current.getHostString()));
+        byteBuffer.putShort(offset + Integer.BYTES, (short) port);
+
+        DatagramPacket packet = new DatagramPacket(data, data.length, address);
+        try {
+
+            server.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void broadcast(InetSocketAddress current, final int offset, final byte[] data) {
 
-        byte[] data = byteBuffer.array();
+        ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
+        byteBuffer.putInt(offset, AddressUtil.ipToInt(current.getHostString()));
+        byteBuffer.putShort(offset + Integer.BYTES, (short) current.getPort());
+
         DatagramPacket packet = new DatagramPacket(data, data.length, current);
-        addresses.forEach(address -> {
-            
-            packet.setSocketAddress(address);
+        clientMap.forEach((address, udpReceiveItem) -> {
             try {
+
+                packet.setSocketAddress(address);
                 server.send(packet);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -145,30 +184,43 @@ public class UDPBaseMessageHandler implements MessageHandler {
         });
     }
 
-    public void connect(InetSocketAddress current, ByteBuffer byteBuffer) {
+    private static final byte[] tooManyConnect = new byte[]{Constant.tooManyConnect};
 
+    public synchronized void connect(InetSocketAddress current, final int offset, final byte[] data) {
+
+        if (clientTokens.size() == 0) {
+            try {
+                server.send(new DatagramPacket(tooManyConnect, tooManyConnect.length, current));
+            } catch (IOException ignored) {}
+            return;
+        }
+
+        final int token = clientTokens.remove(clientTokens.size() - 1);
         // heartbeat 延时10秒执行 每30秒执行
         RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
-            private final byte[] heartbeat = new byte[]{Constant.heartbeat};
+
+            private final byte[] heartbeat = new byte[]{(byte) (token & AddressUtil.UBYTE), Constant.heartbeat};
             private final DatagramPacket packet = new DatagramPacket(heartbeat, heartbeat.length, current);
 
             @Override
             public void run() {
                 try {
+
                     server.send(packet);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
-        }, 10, 30, TimeUnit.SECONDS);
+        }, 0, 30, TimeUnit.SECONDS);
 
         UDPReceiveItem udpReceiveItem = new UDPReceiveItem();
         udpReceiveItem.setLastUpdateTime(System.currentTimeMillis());
         udpReceiveItem.setFuture(future);
+        udpReceiveItem.setToken(token);
         clientMap.put(current, udpReceiveItem);
     }
 
-    public void other(byte cmd, InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void other(InetSocketAddress current, final int offset, final byte[] data) {
 
     }
 }
