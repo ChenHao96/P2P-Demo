@@ -50,7 +50,7 @@ public class UDPConnectHandler implements ConnectHandler, Runnable {
             } else {
                 messageProcessService = new UDPBaseMessageHandler();
             }
-            messageProcessService.setUdpServer(server);
+            messageProcessService.setUdpSocket(server);
             messageProcessService.init();
 
             // TODO: 配置buf长度

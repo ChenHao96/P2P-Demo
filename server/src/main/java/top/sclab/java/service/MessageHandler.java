@@ -5,7 +5,7 @@ import java.net.InetSocketAddress;
 
 public interface MessageHandler extends HandlerInit, HandlerDestroy {
 
-    default void setUdpServer(DatagramSocket server) {
+    default void setUdpSocket(DatagramSocket socket) {
     }
 
     default void udpMessageProcess(InetSocketAddress current, byte[] data) {
