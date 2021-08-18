@@ -89,8 +89,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
                 case Constant.heartbeat:
                     heartbeat(current, offset, data);
                     break;
-                case Constant.connect:
-                    connect(current, offset, data);
+                case Constant.register:
+                    register(current, offset, data);
                     break;
                 case Constant.broadcast:
                     broadcast(current, offset, data);
@@ -186,7 +186,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     private static final byte[] tooManyConnect = new byte[]{Constant.tooManyConnect};
 
-    public synchronized void connect(InetSocketAddress current, final int offset, final byte[] data) {
+    public synchronized void register(InetSocketAddress current, final int offset, final byte[] data) {
 
         if (clientTokens.size() == 0) {
             try {
