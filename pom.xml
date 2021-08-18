@@ -11,8 +11,6 @@
         <module>server</module>
         <module>client</module>
         <module>commons</module>
-        <module>DemoServer</module>
-        <module>DemoClient</module>
     </modules>
     <packaging>pom</packaging>
 

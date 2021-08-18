@@ -1,7 +1,8 @@
-package top.sclab.java.handler;
+package top.sclab.java;
 
-import top.sclab.java.ServerConfig;
-import top.sclab.java.service.ConnectHandler;
+import top.sclab.java.handler.UDPBaseMessageHandler;
+import top.sclab.java.service.HandlerDestroy;
+import top.sclab.java.service.HandlerInit;
 import top.sclab.java.service.MessageHandler;
 
 import java.net.DatagramPacket;
@@ -15,28 +16,27 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class UDPConnectHandler implements ConnectHandler, Runnable {
+public class UDPClientHandler implements HandlerInit, HandlerDestroy, Runnable {
 
     private ExecutorService threadPoolExecutor;
 
     private MessageHandler messageProcessService;
 
-    private DatagramSocket server;
-
-    private DatagramPacket packet;
-
     private boolean initialized = false;
 
     private volatile boolean activated = false;
 
+    private DatagramSocket socket;
+
+    private DatagramPacket serverPacket;
+
     @Override
     public void init() {
 
-        if (ServerConfig.getUDPStartup() && !initialized && !activated) {
+        if (!initialized && !activated) {
 
-            int udpServerPort = ServerConfig.getUDPServerPort();
             try {
-                server = new DatagramSocket(udpServerPort);
+                socket = new DatagramSocket();
             } catch (SocketException e) {
                 throw new RuntimeException(e);
             }
@@ -50,58 +50,50 @@ public class UDPConnectHandler implements ConnectHandler, Runnable {
             } else {
                 messageProcessService = new UDPBaseMessageHandler();
             }
-            messageProcessService.setUdpSocket(server);
+
+            messageProcessService.setUdpSocket(socket);
             messageProcessService.init();
 
-            final byte[] buf = new byte[ServerConfig.getBuffSize()];
-            if (packet == null) {
-                packet = new DatagramPacket(buf, buf.length);
-            }
+            String port = System.getProperty("port", "8880");
+            String host = System.getProperty("host", "localhost");
+            InetSocketAddress serverAddress = new InetSocketAddress(host, Integer.parseInt(port));
+            messageProcessService.register(serverAddress, 1, new byte[]{Constant.heartbeat});
+
+            final byte[] buff = new byte[50];
+            serverPacket = new DatagramPacket(buff, buff.length, serverAddress);
 
             initialized = true;
         }
     }
 
-    public boolean startup() {
-
-        if (ServerConfig.getUDPStartup()) {
-
-            if (activated) {
-                throw new RuntimeException("处理器已正在运行!!!");
-            }
-
-            if (!initialized) {
-                throw new RuntimeException("处理器未初始化!!!");
-            }
-
-            new Thread(this).start();
-
-            System.out.printf("Server:%d 工作中...\n", server.getLocalPort());
-            return true;
-        }
-
-        return false;
-    }
-
     @Override
     public void run() {
 
+        if (activated) {
+            throw new RuntimeException("处理器已正在运行!!!");
+        }
+
+        if (!initialized) {
+            throw new RuntimeException("处理器未初始化!!!");
+        }
+
         activated = true;
-        ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
+
+        ByteBuffer byteBuffer = ByteBuffer.wrap(serverPacket.getData());
         while (activated) {
 
             try {
-                server.receive(packet);
+                socket.receive(serverPacket);
             } catch (Exception e) {
                 e.printStackTrace();
                 continue;
             }
 
-            byte[] data = new byte[packet.getLength()];
+            byte[] data = new byte[serverPacket.getLength()];
             byteBuffer.get(data, 0, data.length);
             byteBuffer.clear();
 
-            InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();
+            InetSocketAddress socketAddress = (InetSocketAddress) serverPacket.getSocketAddress();
             System.out.printf("收到数据 %s -> %s\n", socketAddress, Arrays.toString(data));
             threadPoolExecutor.submit(() -> messageProcessService.udpMessageProcess(socketAddress, data));
         }
@@ -112,13 +104,13 @@ public class UDPConnectHandler implements ConnectHandler, Runnable {
 
         messageProcessService.destroy();
 
-        if (server != null) {
+        if (socket != null) {
             try {
-                server.close();
+                socket.close();
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            server = null;
+            socket = null;
         }
 
         activated = initialized = false;

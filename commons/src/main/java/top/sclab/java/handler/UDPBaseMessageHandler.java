@@ -26,7 +26,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     private Map<InetSocketAddress, UDPReceiveItem> clientMap;
 
-
     private final Object clientMapLock = new Object();
 
     private volatile boolean activated = false;
@@ -93,7 +92,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
                     forward(current, offset, data);
                     break;
                 case Constant.close:
-                    closeClient(current, offset, data);
+                    close(current, offset, data);
                     break;
             }
         }
@@ -142,6 +141,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
+    @Override
     public void heartbeat(InetSocketAddress current, final int offset, final byte[] data) {
         synchronized (clientMapLock) {
             UDPReceiveItem receiveItem = clientMap.get(current);
@@ -151,6 +151,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
+    @Override
     public void forward(InetSocketAddress current, final int offset, final byte[] data) {
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
@@ -173,6 +174,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
+    @Override
     public void broadcast(InetSocketAddress current, final int offset, final byte[] data) {
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
@@ -195,6 +197,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     private static final byte[] heartbeat = new byte[]{Constant.heartbeat};
 
+    @Override
     public void register(InetSocketAddress current, final int offset, final byte[] data) {
 
         if (clientMap.containsKey(current)) {
@@ -226,7 +229,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void closeClient(InetSocketAddress current, final int offset, final byte[] data) {
+    @Override
+    public void close(InetSocketAddress current, final int offset, final byte[] data) {
         synchronized (clientMapLock) {
             UDPReceiveItem item = clientMap.remove(current);
             if (item != null) {
