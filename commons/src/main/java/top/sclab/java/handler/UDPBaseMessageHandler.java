@@ -1,7 +1,6 @@
 package top.sclab.java.handler;
 
 import top.sclab.java.AddressUtil;
-import top.sclab.java.Constant;
 import top.sclab.java.model.UDPReceiveItem;
 import top.sclab.java.service.MessageHandler;
 
@@ -19,6 +18,11 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class UDPBaseMessageHandler implements MessageHandler {
+
+    public static final byte close = 's';
+    public static final byte forward = 'f';
+    public static final byte heartbeat = 'h';
+    public static final byte broadcast = 'b';
 
     protected DatagramSocket socket;
 
@@ -82,23 +86,23 @@ public class UDPBaseMessageHandler implements MessageHandler {
             register(current, byteBuffer);
 
             switch (cmd) {
-                case Constant.heartbeat:
+                case heartbeat:
                     heartbeat(current, byteBuffer);
                     break;
-                case Constant.broadcast:
+                case broadcast:
                     broadcast(current, byteBuffer);
                     break;
-                case Constant.forward:
+                case forward:
                     forward(current, byteBuffer);
                     break;
-                case Constant.close:
+                case close:
                     close(current, byteBuffer);
                     break;
             }
         }
     }
 
-    private static final byte[] close = new byte[]{Constant.close};
+    private static final byte[] closeByte = new byte[]{close};
 
     @Override
     public void destroy() {
@@ -126,7 +130,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
             InetSocketAddress address = iterator.next().getKey();
             if (packet == null) {
-                packet = new DatagramPacket(close, close.length, address);
+                packet = new DatagramPacket(closeByte, closeByte.length, address);
             } else {
                 packet.setSocketAddress(address);
             }
@@ -193,7 +197,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    private static final byte[] heartbeat = new byte[]{Constant.heartbeat};
+    private static final byte[] heartbeatByte = new byte[]{heartbeat};
 
     public void register(InetSocketAddress current, ByteBuffer byteBuffer) {
 
@@ -207,7 +211,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
             }
 
             RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
-                private final DatagramPacket packet = new DatagramPacket(heartbeat, heartbeat.length, current);
+                private final DatagramPacket packet = new DatagramPacket(heartbeatByte, heartbeatByte.length, current);
 
                 @Override
                 public void run() {

@@ -104,7 +104,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     private DatagramPacket forwardPing(InetSocketAddress address, InetSocketAddress current) {
         byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
         ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-        byteBuffer.put(Constant.forward);
+        byteBuffer.put(forward);
         byteBuffer.putInt(AddressUtil.ipToInt(current.getHostString()));
         byteBuffer.putShort((short) current.getPort());
         byteBuffer.put(PING_VALUE.getBytes());
@@ -115,7 +115,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
 
         byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
         ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-        byteBuffer.put(Constant.broadcast);
+        byteBuffer.put(broadcast);
         byteBuffer.putInt(0);
         byteBuffer.putShort((short) 0);
         byteBuffer.put(PING_VALUE.getBytes());
