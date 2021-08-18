@@ -21,13 +21,42 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     @Override
     public void init() {
         super.init();
-        register(serverAddress, 0, null);
+        register(serverAddress, null);
+    }
+
+    @Override
+    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
+        if (!current.equals(serverAddress)) {
+            super.forward(current, byteBuffer);
+        } else {
+
+            final String host = AddressUtil.int2IP(byteBuffer.getInt());
+            int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+
+            String str = new String(new byte[]{byteBuffer.get(), byteBuffer.get()
+                    , byteBuffer.get(), byteBuffer.get(), byteBuffer.get()});
+            if (PING_VALUE.equals(str)) {
+                if (current.equals(serverAddress)) {
+                    try {
+                        socket.send(forwardPing(new InetSocketAddress(host, port), current));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    try {
+                        socket.send(new DatagramPacket(PONG_VALUE.getBytes(), PONG_VALUE.length(), current));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
     }
 
     private static final String PING_VALUE = "ping";
     private static final String PONG_VALUE = "pong";
 
-    public boolean connectPeer(InetSocketAddress current) {
+    private boolean connectPeer(InetSocketAddress current) {
 
         AtomicBoolean loop = new AtomicBoolean(true);
         new Thread(() -> {
@@ -73,7 +102,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     }
 
     private DatagramPacket forwardPing(InetSocketAddress address, InetSocketAddress current) {
-        byte[] data = new byte[11];
+        byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
         ByteBuffer byteBuffer = ByteBuffer.wrap(data);
         byteBuffer.put(Constant.forward);
         byteBuffer.putInt(AddressUtil.ipToInt(current.getHostString()));
@@ -82,40 +111,30 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         return new DatagramPacket(data, data.length, address);
     }
 
-    @Override
-    public void forward(InetSocketAddress current, int offset, byte[] data) {
-        if (!current.equals(serverAddress)) {
-            super.forward(current, offset, data);
-        } else {
+    public void broadcastPing() {
 
-            ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
-            final String host = AddressUtil.int2IP(byteBuffer.getInt());
-            int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+        byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
+        ByteBuffer byteBuffer = ByteBuffer.wrap(data);
+        byteBuffer.put(Constant.broadcast);
+        byteBuffer.putInt(0);
+        byteBuffer.putShort((short) 0);
+        byteBuffer.put(PING_VALUE.getBytes());
 
-            String str = new String(new byte[]{byteBuffer.get(), byteBuffer.get()
-                    , byteBuffer.get(), byteBuffer.get(), byteBuffer.get()});
-            if (PING_VALUE.equals(str)) {
-                if (current.equals(serverAddress)) {
-                    try {
-                        socket.send(forwardPing(InetSocketAddress.createUnresolved(host, port), current));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    try {
-                        socket.send(new DatagramPacket(PONG_VALUE.getBytes(), PONG_VALUE.length(), current));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
+        try {
+            socket.send(new DatagramPacket(data, data.length, serverAddress));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     @Override
-    public void broadcast(InetSocketAddress current, int offset, byte[] data) {
+    public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
         if (!current.equals(serverAddress)) {
-            super.broadcast(current, offset, data);
+            super.broadcast(current, byteBuffer);
+        } else {
+            final String host = AddressUtil.int2IP(byteBuffer.getInt());
+            int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+            connectPeer(new InetSocketAddress(host, port));
         }
     }
 }

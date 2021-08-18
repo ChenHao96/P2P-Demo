@@ -23,7 +23,7 @@ public class ClientBootstrap {
 
         new Thread(udpHandler).start();
 
-        messageHandler.connectPeer(new InetSocketAddress("127.0.0.1",63681));
+        messageHandler.broadcastPing();
 
         final Runnable destroy = () -> {
             udpHandler.destroy();
