@@ -6,12 +6,13 @@
 
     <groupId>org.example</groupId>
     <artifactId>p2p-server</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.3-SNAPSHOT</version>
     <modules>
         <module>server</module>
         <module>client</module>
         <module>commons</module>
         <module>DemoServer</module>
+        <module>DemoClient</module>
     </modules>
     <packaging>pom</packaging>
 
@@ -38,6 +39,12 @@
             <dependency>
                 <groupId>org.example</groupId>
                 <artifactId>server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.example</groupId>
+                <artifactId>client</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

@@ -11,8 +11,8 @@ import java.util.Properties;
 public final class ServerConfig {
 
     private static final String CONFIG_FILE_PATH = "server.config.path";
-    private static final String VERSION_PROPERTY_KEY = "server.version";
-    private static final String ENABLE_COUNT_PROPERTY_KEY = "server.enableCount";
+
+    private static final String BUFF_SIZE_PROPERTY_KEY = "server.buff.size";
 
     private static final String UDP_PORT_PROPERTY_KEY = "server.upd.port";
     private static final String UPD_STARTUP_PROPERTY_KEY = "server.upd.startup";
@@ -130,57 +130,31 @@ public final class ServerConfig {
         }
     }
 
-    private String version = null;
+    private Integer buffSize = null;
 
     /**
-     * 获取连接服务的通讯方式 ipv4/6
+     * 获取缓冲区长度
      *
-     * @return ipv4/6
+     * @return 缓冲区长度
      */
-    public static String getServerVersion() {
+    public static Integer getBuffSize() {
 
-        if (null != instance.version) {
-            return instance.version;
+        if (instance.buffSize != null) {
+            return instance.buffSize;
         }
 
         synchronized (instance) {
-            if (null != instance.version) {
-                return instance.version;
+            if (instance.buffSize != null) {
+                return instance.buffSize;
             }
 
-            String version = System.getProperty(VERSION_PROPERTY_KEY);
-            if (version == null) {
-                version = properties.getProperty(VERSION_PROPERTY_KEY, "ipv4");
+
+            String buffSize = System.getProperty(BUFF_SIZE_PROPERTY_KEY);
+            if (buffSize == null) {
+                buffSize = properties.getProperty(BUFF_SIZE_PROPERTY_KEY, "50");
             }
 
-            return instance.version = version;
-        }
-    }
-
-    private Integer enableCount = null;
-
-    /**
-     * 获取最大连接数量
-     *
-     * @return 最大连接数量
-     */
-    public static Integer getEnableCount() {
-
-        if (instance.enableCount != null) {
-            return instance.enableCount;
-        }
-
-        synchronized (instance) {
-            if (instance.enableCount != null) {
-                return instance.enableCount;
-            }
-
-            String count = System.getProperty(ENABLE_COUNT_PROPERTY_KEY);
-            if (count == null) {
-                count = properties.getProperty(ENABLE_COUNT_PROPERTY_KEY, "200");
-            }
-
-            return instance.enableCount = Math.max(Integer.parseInt(count), 2);
+            return instance.buffSize = Math.max(Integer.parseInt(buffSize), 50);
         }
     }
 

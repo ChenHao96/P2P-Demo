@@ -155,7 +155,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
         final String host = AddressUtil.int2IP(byteBuffer.getInt());
-        int port = byteBuffer.getShort() & AddressUtil.USHORT;
+        int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
         InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
 
         synchronized (clientMapLock) {

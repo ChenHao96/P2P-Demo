@@ -15,6 +15,8 @@ public final class Constant {
 
     public static final String CONNECT_PONG_VALUE = PREFIX + "pong";
 
+
+
     public static String formatAddress(URI address) {
         return String.format("%s%s", Constant.CLIENT_PREFIX, address.toString());
     }
@@ -31,6 +33,8 @@ public final class Constant {
     private static String url(String host, int port, String param) {
         return String.format("udp://%s:%d%s", host, port, param);
     }
+
+
 
 
     public static final byte close = 's';

@@ -9,13 +9,13 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>DemoServer</artifactId>
+    <artifactId>DemoClient</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.example</groupId>
-            <artifactId>server</artifactId>
+            <artifactId>client</artifactId>
         </dependency>
     </dependencies>
 
@@ -27,7 +27,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>top.sclab.java.ServerBootstrap</mainClass>
+                            <mainClass>top.sclab.java.ClientBootstrap</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
@@ -53,7 +53,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>top.sclab.java.ServerBootstrap</mainClass>
+                            <mainClass>top.sclab.java.ClientBootstrap</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -77,4 +77,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>

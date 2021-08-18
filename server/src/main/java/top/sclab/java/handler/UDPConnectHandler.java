@@ -53,8 +53,7 @@ public class UDPConnectHandler implements ConnectHandler, Runnable {
             messageProcessService.setUdpSocket(server);
             messageProcessService.init();
 
-            // TODO: 配置buf长度
-            byte[] buf = new byte[1024];
+            final byte[] buf = new byte[ServerConfig.getBuffSize()];
             if (packet == null) {
                 packet = new DatagramPacket(buf, buf.length);
             }
@@ -100,6 +99,7 @@ public class UDPConnectHandler implements ConnectHandler, Runnable {
 
             byte[] data = new byte[packet.getLength()];
             byteBuffer.get(data, 0, data.length);
+            byteBuffer.clear();
             System.out.printf("收到数据 %s -> %s\n", packet.getSocketAddress(), Arrays.toString(data));
 
             InetSocketAddress socketAddress = (InetSocketAddress) packet.getSocketAddress();

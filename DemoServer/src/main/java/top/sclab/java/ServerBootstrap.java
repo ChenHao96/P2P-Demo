@@ -7,6 +7,7 @@ public class ServerBootstrap {
 
     public static void main(String[] args) {
 
+        System.setProperty("p2p.console.spi", "true");
         Console.load();
 
         ConnectHandler udpHandler = new UDPConnectHandler();

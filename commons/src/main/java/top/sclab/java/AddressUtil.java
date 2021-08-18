@@ -2,8 +2,8 @@ package top.sclab.java;
 
 public final class AddressUtil {
 
-    public static final int UBYTE = 255;
-    public static final int USHORT = 65535;
+    public static final int U_BYTE = 255;
+    public static final int U_SHORT = 65535;
 
     public static int ipToInt(String ipStr) {
 
@@ -27,19 +27,19 @@ public final class AddressUtil {
 
         StringBuilder result = new StringBuilder(15);
 
-        result.insert(0, ip & UBYTE);
+        result.insert(0, ip & U_BYTE);
         result.insert(0, ".");
         ip = ip >>> 8;
 
-        result.insert(0, ip & UBYTE);
+        result.insert(0, ip & U_BYTE);
         result.insert(0, ".");
         ip = ip >>> 8;
 
-        result.insert(0, ip & UBYTE);
+        result.insert(0, ip & U_BYTE);
         result.insert(0, ".");
         ip = ip >>> 8;
 
-        result.insert(0, ip & UBYTE);
+        result.insert(0, ip & U_BYTE);
         return result.toString();
     }
 
