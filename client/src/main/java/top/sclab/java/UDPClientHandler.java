@@ -1,6 +1,5 @@
 package top.sclab.java;
 
-import top.sclab.java.handler.UDPBaseMessageHandler;
 import top.sclab.java.service.HandlerDestroy;
 import top.sclab.java.service.HandlerInit;
 import top.sclab.java.service.MessageHandler;
@@ -8,11 +7,8 @@ import top.sclab.java.service.MessageHandler;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.ServiceLoader;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -26,42 +22,29 @@ public class UDPClientHandler implements HandlerInit, HandlerDestroy, Runnable {
 
     private volatile boolean activated = false;
 
-    private DatagramSocket socket;
+    private final DatagramSocket socket;
 
-    private DatagramPacket serverPacket;
+    private final InetSocketAddress serverAddress;
+
+    public UDPClientHandler(DatagramSocket socket, InetSocketAddress serverAddress) {
+        this.socket = socket;
+        this.serverAddress = serverAddress;
+    }
+
+    public void setMessageProcessService(MessageHandler messageProcessService) {
+        this.messageProcessService = messageProcessService;
+    }
 
     @Override
     public void init() {
 
         if (!initialized && !activated) {
 
-            try {
-                socket = new DatagramSocket();
-            } catch (SocketException e) {
-                throw new RuntimeException(e);
+            if (messageProcessService == null) {
+                throw new RuntimeException("");
             }
 
             threadPoolExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-
-            ServiceLoader<MessageHandler> consolePrintStreams = ServiceLoader.load(MessageHandler.class);
-            Iterator<MessageHandler> iterator = consolePrintStreams.iterator();
-            if (iterator.hasNext()) {
-                messageProcessService = iterator.next();
-            } else {
-                messageProcessService = new UDPBaseMessageHandler();
-            }
-
-            messageProcessService.setUdpSocket(socket);
-            messageProcessService.init();
-
-            String port = System.getProperty("port", "8880");
-            String host = System.getProperty("host", "localhost");
-            InetSocketAddress serverAddress = new InetSocketAddress(host, Integer.parseInt(port));
-            messageProcessService.register(serverAddress, 1, new byte[]{Constant.heartbeat});
-
-            final byte[] buff = new byte[50];
-            serverPacket = new DatagramPacket(buff, buff.length, serverAddress);
-
             initialized = true;
         }
     }
@@ -79,6 +62,8 @@ public class UDPClientHandler implements HandlerInit, HandlerDestroy, Runnable {
 
         activated = true;
 
+        final byte[] buff = new byte[50];
+        DatagramPacket serverPacket = new DatagramPacket(buff, buff.length, serverAddress);
         ByteBuffer byteBuffer = ByteBuffer.wrap(serverPacket.getData());
         while (activated) {
 
@@ -101,18 +86,6 @@ public class UDPClientHandler implements HandlerInit, HandlerDestroy, Runnable {
 
     @Override
     public void destroy() {
-
-        messageProcessService.destroy();
-
-        if (socket != null) {
-            try {
-                socket.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            socket = null;
-        }
-
         activated = initialized = false;
         System.out.println("UDP Server 关闭. 再见!");
     }

@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 public class UDPBaseMessageHandler implements MessageHandler {
 
-    private DatagramSocket socket;
+    protected DatagramSocket socket;
 
     private ScheduledThreadPoolExecutor poolExecutor;
 
@@ -141,7 +141,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    @Override
     public void heartbeat(InetSocketAddress current, final int offset, final byte[] data) {
         synchronized (clientMapLock) {
             UDPReceiveItem receiveItem = clientMap.get(current);
@@ -151,7 +150,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    @Override
     public void forward(InetSocketAddress current, final int offset, final byte[] data) {
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
@@ -174,7 +172,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    @Override
     public void broadcast(InetSocketAddress current, final int offset, final byte[] data) {
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(data, offset, data.length);
@@ -197,7 +194,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     private static final byte[] heartbeat = new byte[]{Constant.heartbeat};
 
-    @Override
     public void register(InetSocketAddress current, final int offset, final byte[] data) {
 
         if (clientMap.containsKey(current)) {
@@ -229,7 +225,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    @Override
     public void close(InetSocketAddress current, final int offset, final byte[] data) {
         synchronized (clientMapLock) {
             UDPReceiveItem item = clientMap.remove(current);
