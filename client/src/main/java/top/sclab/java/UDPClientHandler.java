@@ -87,6 +87,6 @@ public class UDPClientHandler implements HandlerInit, HandlerDestroy, Runnable {
     @Override
     public void destroy() {
         activated = initialized = false;
-        System.out.println("UDP Server 关闭. 再见!");
+        System.out.println("UDP Client 关闭.");
     }
 }

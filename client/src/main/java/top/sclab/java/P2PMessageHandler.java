@@ -76,6 +76,8 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                             socket.send(packet);
                         } catch (IOException e) {
                             e.printStackTrace();
+                        } finally {
+                            System.out.printf("forward ping -> %s\n", address);
                         }
                     }
                 }, 1500, 150, TimeUnit.MILLISECONDS);
@@ -122,6 +124,8 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     socket.send(packet);
                 } catch (IOException e) {
                     e.printStackTrace();
+                } finally {
+                    System.out.printf("broadcast ping -> %s\n", address);
                 }
             }
         }, 0, 150, TimeUnit.MILLISECONDS);
