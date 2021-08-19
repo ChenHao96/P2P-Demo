@@ -150,15 +150,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void heartbeat(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
-        synchronized (clientMapLock) {
-            UDPReceiveItem receiveItem = clientMap.get(current);
-            if (receiveItem != null) {
-                receiveItem.setLastUpdateTime(System.currentTimeMillis());
-            }
-        }
-    }
-
     public void forward(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
         final String host = AddressUtil.int2IP(byteBuffer.getInt());
@@ -175,6 +166,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
                     socket.send(new DatagramPacket(data, data.length, address));
                 } catch (IOException e) {
                     e.printStackTrace();
+                } finally {
+                    System.out.printf("forward %s -> %s\n", current, address);
                 }
             }
         }
@@ -197,6 +190,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
                     socket.send(packet);
                 } catch (IOException e) {
                     e.printStackTrace();
+                } finally {
+                    System.out.printf("broadcast %s -> %s\n", current, address);
                 }
             });
         }
@@ -242,6 +237,15 @@ public class UDPBaseMessageHandler implements MessageHandler {
             UDPReceiveItem item = clientMap.remove(current);
             if (item != null) {
                 poolExecutor.remove(item.getFuture());
+            }
+        }
+    }
+
+    public void heartbeat(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+        synchronized (clientMapLock) {
+            UDPReceiveItem receiveItem = clientMap.get(current);
+            if (receiveItem != null) {
+                receiveItem.setLastUpdateTime(System.currentTimeMillis());
             }
         }
     }
