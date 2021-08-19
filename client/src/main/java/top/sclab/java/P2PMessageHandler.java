@@ -6,13 +6,19 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.concurrent.CountDownLatch;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.RunnableScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class P2PMessageHandler extends UDPBaseMessageHandler {
 
     private final InetSocketAddress serverAddress;
+
+    private final Map<InetSocketAddress, RunnableScheduledFuture<?>> futureMap = new LinkedHashMap<>();
+
+    private ScheduledThreadPoolExecutor poolExecutor;
 
     public P2PMessageHandler(InetSocketAddress serverAddress) {
         this.serverAddress = serverAddress;
@@ -21,95 +27,85 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     @Override
     public void init() {
         super.init();
+
+        poolExecutor = new ScheduledThreadPoolExecutor(Runtime.getRuntime().availableProcessors());
+
         register(serverAddress, null);
     }
 
     @Override
-    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
-        if (!current.equals(serverAddress)) {
-            super.forward(current, byteBuffer);
-        } else {
+    public void destroy() {
 
-            final String host = AddressUtil.int2IP(byteBuffer.getInt());
-            int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+        super.destroy();
 
-            String str = new String(new byte[]{byteBuffer.get(), byteBuffer.get()
-                    , byteBuffer.get(), byteBuffer.get(), byteBuffer.get()});
-            if (PING_VALUE.equals(str)) {
-                if (current.equals(serverAddress)) {
-                    try {
-                        socket.send(forwardPing(new InetSocketAddress(host, port), current));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    try {
-                        socket.send(new DatagramPacket(PONG_VALUE.getBytes(), PONG_VALUE.length(), current));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+        poolExecutor.shutdown();
+        try {
+            if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                poolExecutor.shutdownNow();
+                if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("线程池无法终止");
                 }
+            }
+        } catch (InterruptedException ie) {
+            poolExecutor.shutdownNow();
+        } finally {
+            poolExecutor = null;
+        }
+    }
+
+    @Override
+    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
+
+        final String host = AddressUtil.int2IP(byteBuffer.getInt());
+        int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+
+        byte[] strByte = new byte[PING_VALUE.length()];
+        byteBuffer.get(strByte);
+        String str = new String(strByte);
+
+        if (PING_VALUE.equals(str)) {
+            if (current.equals(serverAddress)) {
+
+                final byte[] data = byteBuffer.array();
+                InetSocketAddress address = new InetSocketAddress(host, port);
+                RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
+                    private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
+
+                    @Override
+                    public void run() {
+                        try {
+                            socket.send(packet);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }, 1500, 150, TimeUnit.MILLISECONDS);
+                futureMap.put(address, future);
+            } else {
+
+                RunnableScheduledFuture<?> future = futureMap.remove(current);
+                if (future != null) {
+                    poolExecutor.remove(future);
+                }
+
+                byteBuffer.put(Byte.BYTES + Integer.BYTES + Short.BYTES + Byte.BYTES, (byte) 'o');
+                final byte[] data = byteBuffer.array();
+                try {
+                    socket.send(new DatagramPacket(data, data.length, current));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else if (PONG_VALUE.equals(str)) {
+            RunnableScheduledFuture<?> future = futureMap.remove(current);
+            if (future != null) {
+                poolExecutor.remove(future);
             }
         }
     }
 
     private static final String PING_VALUE = "ping";
     private static final String PONG_VALUE = "pong";
-
-    private boolean connectPeer(InetSocketAddress current) {
-
-        AtomicBoolean loop = new AtomicBoolean(true);
-        new Thread(() -> {
-            while (loop.get()) {
-                try {
-                    socket.send(forwardPing(serverAddress, current));
-                    Thread.sleep(250);
-                    socket.send(forwardPing(current, current));
-                    Thread.sleep(250);
-                } catch (IOException | InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
-
-        byte[] bytes = new byte[5];
-        final DatagramPacket packet = new DatagramPacket(bytes, bytes.length, current);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        new Thread(() -> {
-            while (loop.get()) {
-                try {
-                    socket.receive(packet);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                if (PONG_VALUE.equals(new String(packet.getData()))) {
-                    latch.countDown();
-                    break;
-                }
-            }
-        }).start();
-
-        boolean result = false;
-        try {
-            result = latch.await(3, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            loop.set(false);
-        }
-        return result;
-    }
-
-    private DatagramPacket forwardPing(InetSocketAddress address, InetSocketAddress current) {
-        byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
-        ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-        byteBuffer.put(forward);
-        byteBuffer.putInt(AddressUtil.ipToInt(current.getHostString()));
-        byteBuffer.putShort((short) current.getPort());
-        byteBuffer.put(PING_VALUE.getBytes());
-        return new DatagramPacket(data, data.length, address);
-    }
 
     public void broadcastPing() {
 
@@ -129,12 +125,32 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
 
     @Override
     public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
-        if (!current.equals(serverAddress)) {
-            super.broadcast(current, byteBuffer);
-        } else {
-            final String host = AddressUtil.int2IP(byteBuffer.getInt());
-            int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
-            connectPeer(new InetSocketAddress(host, port));
+
+        final String host = AddressUtil.int2IP(byteBuffer.getInt());
+        int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+
+        byteBuffer.put(0, forward);
+        final byte[] data = byteBuffer.array();
+
+        final InetSocketAddress address = new InetSocketAddress(host, port);
+        RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
+            private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
+
+            @Override
+            public void run() {
+                try {
+                    socket.send(packet);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, 0, 150, TimeUnit.MILLISECONDS);
+        futureMap.put(address, future);
+
+        try {
+            socket.send(new DatagramPacket(data, data.length, serverAddress));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

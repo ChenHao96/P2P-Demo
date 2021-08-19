@@ -10,7 +10,7 @@ public class ClientBootstrap {
 
         DatagramSocket socket = new DatagramSocket();
         String port = System.getProperty("port", "8880");
-        String host = System.getProperty("host", "localhost");
+        String host = "localhost";//System.getProperty("host", "localhost");
         InetSocketAddress serverAddress = new InetSocketAddress(host, Integer.parseInt(port));
 
         P2PMessageHandler messageHandler = new P2PMessageHandler(serverAddress);

@@ -55,6 +55,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         poolExecutor.scheduleAtFixedRate(() -> {
             final long currentTime = System.currentTimeMillis();
             synchronized (clientMapLock) {
+                System.out.printf("开始检查存活连接  %d\n", clientMap.size());
                 Set<Map.Entry<InetSocketAddress, UDPReceiveItem>> entries = clientMap.entrySet();
                 Iterator<Map.Entry<InetSocketAddress, UDPReceiveItem>> iterator = entries.iterator();
                 while (iterator.hasNext()) {
@@ -66,8 +67,9 @@ public class UDPBaseMessageHandler implements MessageHandler {
                         iterator.remove();
                     }
                 }
+                System.out.printf("结束检查存活连接  %d\n", clientMap.size());
             }
-        }, 0, period, TimeUnit.MILLISECONDS);
+        }, period, period, TimeUnit.MILLISECONDS);
 
         this.activated = true;
     }
@@ -219,6 +221,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
                         socket.send(packet);
                     } catch (IOException e) {
                         e.printStackTrace();
+                    } finally {
+                        System.out.printf("发送心跳 -> %s\n", packet.getSocketAddress());
                     }
                 }
             }, 0, HeartbeatIntervalTime, TimeUnit.MILLISECONDS);
