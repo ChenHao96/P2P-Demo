@@ -160,7 +160,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
             if (clientMap.containsKey(address)) {
 
                 byteBuffer.putInt(offset, AddressUtil.ipToInt(current.getHostString()));
-                byteBuffer.putShort(offset + Integer.BYTES, (short) port);
+                byteBuffer.putShort(offset + Integer.BYTES, (short) current.getPort());
                 try {
                     byte[] data = byteBuffer.array();
                     socket.send(new DatagramPacket(data, data.length, address));
