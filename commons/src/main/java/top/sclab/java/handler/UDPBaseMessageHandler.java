@@ -163,7 +163,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
         final String host = AddressUtil.int2IP(byteBuffer.getInt());
         int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
-        InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
+        InetSocketAddress address = new InetSocketAddress(host, port);
 
         synchronized (clientMapLock) {
             if (clientMap.containsKey(address)) {
