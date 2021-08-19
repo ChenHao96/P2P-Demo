@@ -84,21 +84,24 @@ public class UDPBaseMessageHandler implements MessageHandler {
         if (data != null && data.length > 0) {
 
             ByteBuffer byteBuffer = ByteBuffer.wrap(data);
+
             byte cmd = byteBuffer.get();
-            register(current, byteBuffer);
+            int offset = Byte.BYTES;
+
+            register(current, offset, byteBuffer);
 
             switch (cmd) {
                 case heartbeat:
-                    heartbeat(current, byteBuffer);
+                    heartbeat(current, offset, byteBuffer);
                     break;
                 case broadcast:
-                    broadcast(current, byteBuffer);
+                    broadcast(current, offset, byteBuffer);
                     break;
                 case forward:
-                    forward(current, byteBuffer);
+                    forward(current, offset, byteBuffer);
                     break;
                 case close:
-                    close(current, byteBuffer);
+                    close(current, offset, byteBuffer);
                     break;
             }
         }
@@ -147,7 +150,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void heartbeat(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void heartbeat(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
         synchronized (clientMapLock) {
             UDPReceiveItem receiveItem = clientMap.get(current);
             if (receiveItem != null) {
@@ -156,7 +159,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void forward(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
         final String host = AddressUtil.int2IP(byteBuffer.getInt());
         int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
@@ -165,8 +168,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
         synchronized (clientMapLock) {
             if (clientMap.containsKey(address)) {
 
-                byteBuffer.putInt(AddressUtil.ipToInt(current.getHostString()));
-                byteBuffer.putShort((short) port);
+                byteBuffer.putInt(offset, AddressUtil.ipToInt(current.getHostString()));
+                byteBuffer.putShort(offset + Integer.BYTES, (short) port);
                 try {
                     byte[] data = byteBuffer.array();
                     socket.send(new DatagramPacket(data, data.length, address));
@@ -177,7 +180,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void broadcast(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
         byteBuffer.putInt(AddressUtil.ipToInt(current.getHostString()));
         byteBuffer.putShort((short) current.getPort());
@@ -201,7 +204,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     private static final byte[] heartbeatByte = new byte[]{heartbeat};
 
-    public void register(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void register(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
         if (clientMap.containsKey(current)) {
             return;
@@ -234,7 +237,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void close(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void close(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
         synchronized (clientMapLock) {
             UDPReceiveItem item = clientMap.remove(current);
             if (item != null) {

@@ -30,31 +30,30 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
 
         poolExecutor = new ScheduledThreadPoolExecutor(Runtime.getRuntime().availableProcessors());
 
-        register(serverAddress, null);
+        register(serverAddress, 0, null);
     }
 
-    @Override
-    public void destroy() {
+    private static final String PING_VALUE = "ping";
+    private static final String PONG_VALUE = "pong";
 
-        super.destroy();
+    public void broadcastPing() {
 
-        poolExecutor.shutdown();
+        byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
+        ByteBuffer byteBuffer = ByteBuffer.wrap(data);
+        byteBuffer.put(broadcast);
+        byteBuffer.putInt(0);
+        byteBuffer.putShort((short) 0);
+        byteBuffer.put(PING_VALUE.getBytes());
+
         try {
-            if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-                poolExecutor.shutdownNow();
-                if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-                    System.err.println("线程池无法终止");
-                }
-            }
-        } catch (InterruptedException ie) {
-            poolExecutor.shutdownNow();
-        } finally {
-            poolExecutor = null;
+            socket.send(new DatagramPacket(data, data.length, serverAddress));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     @Override
-    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void forward(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
         final String host = AddressUtil.int2IP(byteBuffer.getInt());
         int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
@@ -88,7 +87,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     poolExecutor.remove(future);
                 }
 
-                byteBuffer.put(Byte.BYTES + Integer.BYTES + Short.BYTES + Byte.BYTES, (byte) 'o');
+                byteBuffer.put(offset + Integer.BYTES + Short.BYTES + Byte.BYTES, (byte) 'o');
                 final byte[] data = byteBuffer.array();
                 try {
                     socket.send(new DatagramPacket(data, data.length, current));
@@ -104,32 +103,13 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         }
     }
 
-    private static final String PING_VALUE = "ping";
-    private static final String PONG_VALUE = "pong";
-
-    public void broadcastPing() {
-
-        byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
-        ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-        byteBuffer.put(broadcast);
-        byteBuffer.putInt(0);
-        byteBuffer.putShort((short) 0);
-        byteBuffer.put(PING_VALUE.getBytes());
-
-        try {
-            socket.send(new DatagramPacket(data, data.length, serverAddress));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     @Override
-    public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void broadcast(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
         final String host = AddressUtil.int2IP(byteBuffer.getInt());
         int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
 
-        byteBuffer.put(0, forward);
+        byteBuffer.put(offset - Byte.BYTES, forward);
         final byte[] data = byteBuffer.array();
 
         final InetSocketAddress address = new InetSocketAddress(host, port);
@@ -151,6 +131,26 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
             socket.send(new DatagramPacket(data, data.length, serverAddress));
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void destroy() {
+
+        super.destroy();
+
+        poolExecutor.shutdown();
+        try {
+            if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                poolExecutor.shutdownNow();
+                if (!poolExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("线程池无法终止");
+                }
+            }
+        } catch (InterruptedException ie) {
+            poolExecutor.shutdownNow();
+        } finally {
+            poolExecutor = null;
         }
     }
 }
