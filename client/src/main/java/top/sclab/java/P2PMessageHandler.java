@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.RunnableScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class P2PMessageHandler extends UDPBaseMessageHandler {
 
@@ -69,6 +70,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                 InetSocketAddress address = new InetSocketAddress(host, port);
                 RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
                     private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
+                    private final AtomicInteger atomicInteger = new AtomicInteger(400);
 
                     @Override
                     public void run() {
@@ -78,9 +80,15 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                             e.printStackTrace();
                         } finally {
                             System.out.printf("forward ping -> %s\n", address);
+                            if (atomicInteger.decrementAndGet() < 0) {
+                                RunnableScheduledFuture<?> future = futureMap.get(address);
+                                if (future != null) {
+                                    poolExecutor.remove(future);
+                                }
+                            }
                         }
                     }
-                }, 1500, 150, TimeUnit.MILLISECONDS);
+                }, 0, 150, TimeUnit.MILLISECONDS);
                 futureMap.put(address, future);
             } else {
 
@@ -117,6 +125,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         final InetSocketAddress address = new InetSocketAddress(host, port);
         RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
             private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
+            private final AtomicInteger atomicInteger = new AtomicInteger(400);
 
             @Override
             public void run() {
@@ -126,6 +135,12 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     e.printStackTrace();
                 } finally {
                     System.out.printf("broadcast ping -> %s\n", address);
+                    if (atomicInteger.decrementAndGet() < 0) {
+                        RunnableScheduledFuture<?> future = futureMap.get(address);
+                        if (future != null) {
+                            poolExecutor.remove(future);
+                        }
+                    }
                 }
             }
         }, 0, 150, TimeUnit.MILLISECONDS);
