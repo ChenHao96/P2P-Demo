@@ -70,7 +70,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                 InetSocketAddress address = new InetSocketAddress(host, port);
                 RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
                     private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
-                    private final AtomicInteger atomicInteger = new AtomicInteger(200);
+                    private final AtomicInteger atomicInteger = new AtomicInteger(150);
 
                     @Override
                     public void run() {
@@ -88,7 +88,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                             }
                         }
                     }
-                }, 0, 150, TimeUnit.MILLISECONDS);
+                }, 0, 200, TimeUnit.MILLISECONDS);
                 futureMap.put(address, future);
             } else {
 
@@ -125,7 +125,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         final InetSocketAddress address = new InetSocketAddress(host, port);
         RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
             private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
-            private final AtomicInteger atomicInteger = new AtomicInteger(200);
+            private final AtomicInteger atomicInteger = new AtomicInteger(150);
 
             @Override
             public void run() {
@@ -143,7 +143,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     }
                 }
             }
-        }, 0, 150, TimeUnit.MILLISECONDS);
+        }, 1000, 200, TimeUnit.MILLISECONDS);
         futureMap.put(address, future);
 
         try {
