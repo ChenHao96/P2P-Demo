@@ -70,7 +70,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                 InetSocketAddress address = new InetSocketAddress(host, port);
                 RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
                     private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
-                    private final AtomicInteger atomicInteger = new AtomicInteger(400);
+                    private final AtomicInteger atomicInteger = new AtomicInteger(200);
 
                     @Override
                     public void run() {
@@ -81,9 +81,9 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                         } finally {
                             System.out.printf("forward ping -> %s\n", address);
                             if (atomicInteger.decrementAndGet() < 0) {
-                                RunnableScheduledFuture<?> future = futureMap.get(address);
+                                RunnableScheduledFuture<?> future = futureMap.remove(address);
                                 if (future != null) {
-                                    poolExecutor.remove(future);
+                                    future.cancel(true);
                                 }
                             }
                         }
@@ -125,7 +125,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         final InetSocketAddress address = new InetSocketAddress(host, port);
         RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
             private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
-            private final AtomicInteger atomicInteger = new AtomicInteger(400);
+            private final AtomicInteger atomicInteger = new AtomicInteger(200);
 
             @Override
             public void run() {
@@ -136,9 +136,9 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                 } finally {
                     System.out.printf("broadcast ping -> %s\n", address);
                     if (atomicInteger.decrementAndGet() < 0) {
-                        RunnableScheduledFuture<?> future = futureMap.get(address);
+                        RunnableScheduledFuture<?> future = futureMap.remove(address);
                         if (future != null) {
-                            poolExecutor.remove(future);
+                            future.cancel(true);
                         }
                     }
                 }
