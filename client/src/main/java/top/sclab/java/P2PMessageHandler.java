@@ -139,7 +139,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     int value = atomicInteger.decrementAndGet();
                     if (value > 0) {
                         RunnableScheduledFuture<?> future;
-                        if (value < 50) {
+                        if (value < 100) {
                             future = (RunnableScheduledFuture<?>) poolExecutor.schedule(
                                     this, 500, TimeUnit.MILLISECONDS);
                         } else {
