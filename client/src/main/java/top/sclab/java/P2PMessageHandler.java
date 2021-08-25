@@ -119,7 +119,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         int localPort = getLocalPort(byteBuffer);
 
         setCmd(byteBuffer, forward);
-        long initialDelay = socket.getLocalPort() == localPort ? 500 : 0;
+        long initialDelay = socket.getLocalPort() == localPort ? PERIOD_MS * 2 : 0;
         putLocalPort(byteBuffer, socket.getLocalPort());
 
         final byte[] data = byteBuffer.array();
