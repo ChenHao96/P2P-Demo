@@ -74,6 +74,61 @@ public class UDPBaseMessageHandler implements MessageHandler {
         this.activated = true;
     }
 
+    protected ByteBuffer createByteBuffer(byte cmd, String ip, int port, byte[] data) {
+
+        if (data == null) {
+            data = new byte[0];
+        }
+
+        byte[] buf = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + Short.BYTES + data.length];
+        ByteBuffer byteBuffer = ByteBuffer.wrap(buf);
+        setCmd(byteBuffer, cmd);
+        setAddress(byteBuffer, ip, port);
+        putValue(byteBuffer, data);
+        return byteBuffer;
+    }
+
+    protected void setCmd(ByteBuffer byteBuffer, byte cmd) {
+        byteBuffer.put(0, cmd);
+    }
+
+    protected void setAddress(ByteBuffer byteBuffer, String ip, int port) {
+        byteBuffer.putInt(Byte.BYTES, AddressUtil.ipToInt(ip));
+        byteBuffer.putShort(Integer.BYTES + Byte.BYTES, (short) port);
+    }
+
+    protected InetSocketAddress getAddress(ByteBuffer byteBuffer) {
+        final String host = AddressUtil.int2IP(byteBuffer.getInt(Byte.BYTES));
+        int port = byteBuffer.getShort(Integer.BYTES + Byte.BYTES) & AddressUtil.U_SHORT;
+        return new InetSocketAddress(host, port);
+    }
+
+    protected int getLocalPort(ByteBuffer byteBuffer) {
+        return byteBuffer.getShort(Integer.BYTES + Byte.BYTES + Short.BYTES) & AddressUtil.U_SHORT;
+    }
+
+    protected void putLocalPort(ByteBuffer byteBuffer, int localPort) {
+        byteBuffer.putShort(Integer.BYTES + Byte.BYTES + Short.BYTES, (short) localPort);
+    }
+
+    protected void getValue(ByteBuffer byteBuffer, byte[] value) {
+        if (value != null) {
+            int index = Byte.BYTES + Integer.BYTES + Short.BYTES + Short.BYTES;
+            for (int i = 0; i < value.length; i++) {
+                value[i] = byteBuffer.get(index + i);
+            }
+        }
+    }
+
+    protected void putValue(ByteBuffer byteBuffer, byte[] value) {
+        if (value != null && value.length > 0) {
+            int index = Byte.BYTES + Integer.BYTES + Short.BYTES + Short.BYTES;
+            for (int i = 0; i < value.length; i++) {
+                byteBuffer.put(index + i, value[i]);
+            }
+        }
+    }
+
     @Override
     public void udpMessageProcess(InetSocketAddress current, byte[] data) {
 
@@ -152,15 +207,12 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     public void forward(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
-        final String host = AddressUtil.int2IP(byteBuffer.getInt());
-        int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
-        InetSocketAddress address = new InetSocketAddress(host, port);
-
+        InetSocketAddress address = getAddress(byteBuffer);
         synchronized (clientMapLock) {
             if (clientMap.containsKey(address)) {
 
-                byteBuffer.putInt(offset, AddressUtil.ipToInt(current.getHostString()));
-                byteBuffer.putShort(offset + Integer.BYTES, (short) current.getPort());
+                setAddress(byteBuffer, current.getHostString(), current.getPort());
+                putLocalPort(byteBuffer, address.getPort());
                 try {
                     byte[] data = byteBuffer.array();
                     socket.send(new DatagramPacket(data, data.length, address));
@@ -175,8 +227,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
     public void broadcast(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
-        byteBuffer.putInt(AddressUtil.ipToInt(current.getHostString()));
-        byteBuffer.putShort((short) current.getPort());
+        setAddress(byteBuffer, current.getHostString(), current.getPort());
 
         byte[] data = byteBuffer.array();
         final DatagramPacket packet = new DatagramPacket(data, data.length, current);
@@ -186,6 +237,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
                     return;
                 }
                 try {
+                    putLocalPort(byteBuffer, address.getPort());
                     packet.setSocketAddress(address);
                     socket.send(packet);
                 } catch (IOException e) {

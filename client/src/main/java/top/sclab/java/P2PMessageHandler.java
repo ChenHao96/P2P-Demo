@@ -15,6 +15,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class P2PMessageHandler extends UDPBaseMessageHandler {
 
+    private static final String PING_VALUE = "ping";
+    private static final String PONG_VALUE = "pong";
+    private static final long RETRY_TIME = TimeUnit.SECONDS.toMillis(30);
+
+    private static final long PERIOD_MS = 250;
+    private static final int RETRY_COUNT = (int) (RETRY_TIME / PERIOD_MS);
+
     private final InetSocketAddress serverAddress;
 
     private final Map<InetSocketAddress, RunnableScheduledFuture<?>> futureMap = new LinkedHashMap<>();
@@ -34,17 +41,10 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         register(serverAddress, 0, null);
     }
 
-    private static final String PING_VALUE = "ping";
-    private static final String PONG_VALUE = "pong";
-
     public void broadcastPing() {
 
-        byte[] data = new byte[Byte.BYTES + Integer.BYTES + Short.BYTES + PING_VALUE.length()];
-        ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-        byteBuffer.put(broadcast);
-        byteBuffer.putInt(0);
-        byteBuffer.putShort((short) 0);
-        byteBuffer.put(PING_VALUE.getBytes());
+        ByteBuffer byteBuffer = createByteBuffer(broadcast, "0.0.0.0", 0, PING_VALUE.getBytes());
+        final byte[] data = byteBuffer.array();
 
         try {
             socket.send(new DatagramPacket(data, data.length, serverAddress));
@@ -56,21 +56,20 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     @Override
     public void forward(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
-        final String host = AddressUtil.int2IP(byteBuffer.getInt());
-        int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+        InetSocketAddress address = getAddress(byteBuffer);
 
         byte[] strByte = new byte[PING_VALUE.length()];
-        byteBuffer.get(strByte);
+        getValue(byteBuffer, strByte);
         String str = new String(strByte);
 
         if (PING_VALUE.equals(str)) {
             if (current.equals(serverAddress)) {
 
+                putLocalPort(byteBuffer, socket.getLocalPort());
                 final byte[] data = byteBuffer.array();
-                InetSocketAddress address = new InetSocketAddress(host, port);
                 RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
                     private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
-                    private final AtomicInteger atomicInteger = new AtomicInteger(150);
+                    private final AtomicInteger atomicInteger = new AtomicInteger(RETRY_COUNT);
 
                     @Override
                     public void run() {
@@ -88,7 +87,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                             }
                         }
                     }
-                }, 0, 200, TimeUnit.MILLISECONDS);
+                }, 0, PERIOD_MS, TimeUnit.MILLISECONDS);
                 futureMap.put(address, future);
             } else {
 
@@ -97,7 +96,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     poolExecutor.remove(future);
                 }
 
-                byteBuffer.put(offset + Integer.BYTES + Short.BYTES + Byte.BYTES, (byte) 'o');
+                putValue(byteBuffer, PONG_VALUE.getBytes());
                 final byte[] data = byteBuffer.array();
                 try {
                     socket.send(new DatagramPacket(data, data.length, current));
@@ -116,17 +115,17 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     @Override
     public void broadcast(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
 
-        final String host = AddressUtil.int2IP(byteBuffer.getInt());
-        int port = byteBuffer.getShort() & AddressUtil.U_SHORT;
+        final InetSocketAddress address = getAddress(byteBuffer);
+        int localPort = getLocalPort(byteBuffer);
 
-        byteBuffer.put(offset - Byte.BYTES, forward);
+        setCmd(byteBuffer, forward);
+        long initialDelay = socket.getLocalPort() == localPort ? 500 : 0;
+        putLocalPort(byteBuffer, socket.getLocalPort());
+
         final byte[] data = byteBuffer.array();
-
-        final InetSocketAddress address = new InetSocketAddress(host, port);
-
-        Runnable broadcast = new Runnable() {
+        RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
             private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
-            private final AtomicInteger atomicInteger = new AtomicInteger(150);
+            private final AtomicInteger atomicInteger = new AtomicInteger(RETRY_COUNT);
 
             @Override
             public void run() {
@@ -136,18 +135,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     e.printStackTrace();
                 } finally {
                     System.out.printf("broadcast ping -> %s\n", address);
-                    int value = atomicInteger.decrementAndGet();
-                    if (value > 0) {
-                        RunnableScheduledFuture<?> future;
-                        if (value < 100) {
-                            future = (RunnableScheduledFuture<?>) poolExecutor.schedule(
-                                    this, 500, TimeUnit.MILLISECONDS);
-                        } else {
-                            future = (RunnableScheduledFuture<?>) poolExecutor.schedule(
-                                    this, 200, TimeUnit.MILLISECONDS);
-                        }
-                        futureMap.put(address, future);
-                    } else {
+                    if (atomicInteger.decrementAndGet() < 0) {
                         RunnableScheduledFuture<?> future = futureMap.remove(address);
                         if (future != null) {
                             future.cancel(true);
@@ -155,10 +143,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     }
                 }
             }
-        };
-
-        RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.schedule(
-                broadcast, 0, TimeUnit.MILLISECONDS);
+        }, initialDelay, PERIOD_MS, TimeUnit.MILLISECONDS);
         futureMap.put(address, future);
 
         try {
