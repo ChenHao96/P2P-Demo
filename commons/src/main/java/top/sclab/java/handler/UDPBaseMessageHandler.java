@@ -92,6 +92,10 @@ public class UDPBaseMessageHandler implements MessageHandler {
         byteBuffer.put(0, cmd);
     }
 
+    protected byte getCmd(ByteBuffer byteBuffer) {
+        return byteBuffer.get(0);
+    }
+
     protected void setAddress(ByteBuffer byteBuffer, String ip, int port) {
         byteBuffer.putInt(Byte.BYTES, AddressUtil.ipToInt(ip));
         byteBuffer.putShort(Integer.BYTES + Byte.BYTES, (short) port);
@@ -139,30 +143,25 @@ public class UDPBaseMessageHandler implements MessageHandler {
         if (data != null && data.length > 0) {
 
             ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-
-            byte cmd = byteBuffer.get();
-            int offset = Byte.BYTES;
-
-            register(current, offset, byteBuffer);
+            byte cmd = getCmd(byteBuffer);
+            register(current, byteBuffer);
 
             switch (cmd) {
                 case heartbeat:
-                    heartbeat(current, offset, byteBuffer);
+                    heartbeat(current, byteBuffer);
                     break;
                 case broadcast:
-                    broadcast(current, offset, byteBuffer);
+                    broadcast(current, byteBuffer);
                     break;
                 case forward:
-                    forward(current, offset, byteBuffer);
+                    forward(current, byteBuffer);
                     break;
                 case close:
-                    close(current, offset, byteBuffer);
+                    close(current, byteBuffer);
                     break;
             }
         }
     }
-
-    private static final byte[] closeByte = new byte[]{close};
 
     @Override
     public void destroy() {
@@ -183,6 +182,9 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
         this.activated = false;
 
+        ByteBuffer byteBuffer = createByteBuffer(close, "0.0.0.0", 0, null);
+        byte[] data = byteBuffer.array();
+
         Set<Map.Entry<InetSocketAddress, UDPReceiveItem>> entries = clientMap.entrySet();
         Iterator<Map.Entry<InetSocketAddress, UDPReceiveItem>> iterator = entries.iterator();
         DatagramPacket packet = null;
@@ -190,7 +192,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
             InetSocketAddress address = iterator.next().getKey();
             if (packet == null) {
-                packet = new DatagramPacket(closeByte, closeByte.length, address);
+                packet = new DatagramPacket(data, data.length, address);
             } else {
                 packet.setSocketAddress(address);
             }
@@ -205,7 +207,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void forward(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
 
         InetSocketAddress address = getAddress(byteBuffer);
         synchronized (clientMapLock) {
@@ -225,7 +227,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void broadcast(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+    public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
 
         setAddress(byteBuffer, current.getHostString(), current.getPort());
 
@@ -249,9 +251,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    private static final byte[] heartbeatByte = new byte[]{heartbeat};
-
-    public void register(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+    public void register(InetSocketAddress current, ByteBuffer byteBuffer) {
 
         if (clientMap.containsKey(current)) {
             return;
@@ -262,8 +262,10 @@ public class UDPBaseMessageHandler implements MessageHandler {
                 return;
             }
 
+            byteBuffer = createByteBuffer(heartbeat, "0.0.0.0", 0, null);
+            byte[] data = byteBuffer.array();
             RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
-                private final DatagramPacket packet = new DatagramPacket(heartbeatByte, heartbeatByte.length, current);
+                private final DatagramPacket packet = new DatagramPacket(data, data.length, current);
 
                 @Override
                 public void run() {
@@ -284,7 +286,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void close(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+    public void close(InetSocketAddress current, ByteBuffer byteBuffer) {
         synchronized (clientMapLock) {
             UDPReceiveItem item = clientMap.remove(current);
             if (item != null) {
@@ -293,7 +295,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void heartbeat(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+    public void heartbeat(InetSocketAddress current, ByteBuffer byteBuffer) {
         synchronized (clientMapLock) {
             UDPReceiveItem receiveItem = clientMap.get(current);
             if (receiveItem != null) {

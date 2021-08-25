@@ -38,7 +38,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
 
         poolExecutor = new ScheduledThreadPoolExecutor(Runtime.getRuntime().availableProcessors());
 
-        register(serverAddress, 0, null);
+        register(serverAddress, null);
     }
 
     public void broadcastPing() {
@@ -54,7 +54,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     }
 
     @Override
-    public void forward(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+    public void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
 
         InetSocketAddress address = getAddress(byteBuffer);
 
@@ -113,7 +113,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
     }
 
     @Override
-    public void broadcast(InetSocketAddress current, int offset, ByteBuffer byteBuffer) {
+    public void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
 
         final InetSocketAddress address = getAddress(byteBuffer);
         int localPort = getLocalPort(byteBuffer);
