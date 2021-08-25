@@ -123,7 +123,8 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         final byte[] data = byteBuffer.array();
 
         final InetSocketAddress address = new InetSocketAddress(host, port);
-        RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
+
+        Runnable broadcast = new Runnable() {
             private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
             private final AtomicInteger atomicInteger = new AtomicInteger(150);
 
@@ -135,7 +136,18 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     e.printStackTrace();
                 } finally {
                     System.out.printf("broadcast ping -> %s\n", address);
-                    if (atomicInteger.decrementAndGet() < 0) {
+                    int value = atomicInteger.decrementAndGet();
+                    if (value > 0) {
+                        RunnableScheduledFuture<?> future;
+                        if (value < 50) {
+                            future = (RunnableScheduledFuture<?>) poolExecutor.schedule(
+                                    this, 500, TimeUnit.MILLISECONDS);
+                        } else {
+                            future = (RunnableScheduledFuture<?>) poolExecutor.schedule(
+                                    this, 200, TimeUnit.MILLISECONDS);
+                        }
+                        futureMap.put(address, future);
+                    } else {
                         RunnableScheduledFuture<?> future = futureMap.remove(address);
                         if (future != null) {
                             future.cancel(true);
@@ -143,7 +155,10 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     }
                 }
             }
-        }, 1000, 200, TimeUnit.MILLISECONDS);
+        };
+
+        RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.schedule(
+                broadcast, 0, TimeUnit.MILLISECONDS);
         futureMap.put(address, future);
 
         try {
