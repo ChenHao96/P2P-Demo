@@ -18,7 +18,7 @@ public class BeansConfig implements InitializingBean {
     public MessageHandler messageHandler() {
         return new UDPBaseMessageHandler() {
             @Override
-            protected void processData(InetSocketAddress current, ByteBuffer byteBuffer) {
+            public void processData(InetSocketAddress current, ByteBuffer byteBuffer) {
             }
         };
     }

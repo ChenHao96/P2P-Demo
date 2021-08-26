@@ -1,5 +1,7 @@
 package top.sclab.java.handler;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import top.sclab.java.model.UDPReceiveItem;
 import top.sclab.java.service.MessageHandler;
 import top.sclab.java.util.IPUtil;
@@ -33,6 +35,9 @@ public abstract class UDPBaseMessageHandler implements MessageHandler {
     private final Object clientMapLock = new Object();
 
     private volatile boolean activated = false;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     @Override
     public void setUdpSocket(DatagramSocket socket) {
@@ -201,6 +206,24 @@ public abstract class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
+    private boolean checkAndRegisterConnect(InetSocketAddress current, ByteBuffer byteBuffer) {
+
+        int localPort = getLocalPort(byteBuffer);
+        String natAddress = current.getHostString();
+        int natPort = current.getPort();
+
+        byte[] data = new byte[32];
+        getData(byteBuffer, data);
+        String token = new String(data);
+        // TODO: 校验token
+
+        String cacheKey = String.format("user_connect_list_%s", token);
+        redisTemplate.boundListOps(cacheKey);
+
+
+        return false;
+    }
+
     private static final byte[] heartbeats = new byte[]{heartbeat};
 
     public void register(InetSocketAddress current, ByteBuffer byteBuffer) {
@@ -214,10 +237,9 @@ public abstract class UDPBaseMessageHandler implements MessageHandler {
                 return;
             }
 
-            byte[] data = new byte[32];
-            getData(byteBuffer, data);
-            String token = new String(data);
-            // TODO: 校验token
+            if (!checkAndRegisterConnect(current, byteBuffer)) {
+                return;
+            }
 
             RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
                 private final DatagramPacket packet = new DatagramPacket(heartbeats, heartbeats.length, current);
