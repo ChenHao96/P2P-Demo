@@ -1,8 +1,8 @@
 package top.sclab.java.handler;
 
-import top.sclab.java.AddressUtil;
 import top.sclab.java.model.UDPReceiveItem;
 import top.sclab.java.service.MessageHandler;
+import top.sclab.java.util.IPUtil;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -17,7 +17,7 @@ import java.util.concurrent.RunnableScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class UDPBaseMessageHandler implements MessageHandler {
+public abstract class UDPBaseMessageHandler implements MessageHandler {
 
     public static final byte close = 's';
     public static final byte forward = 'f';
@@ -40,6 +40,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
     }
 
     private static final long HeartbeatIntervalTime = TimeUnit.SECONDS.toMillis(15);
+
+    public abstract void processData(InetSocketAddress current, ByteBuffer byteBuffer);
 
     @Override
     public void init() {
@@ -74,86 +76,6 @@ public class UDPBaseMessageHandler implements MessageHandler {
         this.activated = true;
     }
 
-    private static final int BLANK_PORT = 0;
-    private static final String BLANK_IP = "0.0.0.0";
-
-    protected ByteBuffer createByteBuffer(byte cmd, String ip, int port, byte[] data) {
-
-        // cmd
-        int buffLength = Byte.BYTES;
-        if (!BLANK_IP.equals(ip)) {
-            // from ip
-            buffLength += Integer.BYTES;
-        }
-        if (BLANK_PORT != port) {
-            // from port
-            buffLength += Short.BYTES;
-        }
-        if (data != null) {
-            // data
-            buffLength += data.length;
-        }
-        if (buffLength > Byte.BYTES) {
-            // localPort
-            buffLength += Short.BYTES;
-        }
-
-        ByteBuffer byteBuffer = ByteBuffer.allocate(buffLength);
-        setCmd(byteBuffer, cmd);
-        setAddress(byteBuffer, ip, port);
-        putValue(byteBuffer, data);
-        return byteBuffer;
-    }
-
-    protected void setCmd(ByteBuffer byteBuffer, byte cmd) {
-        byteBuffer.put(0, cmd);
-    }
-
-    protected byte getCmd(ByteBuffer byteBuffer) {
-        return byteBuffer.get(0);
-    }
-
-    protected void setAddress(ByteBuffer byteBuffer, String ip, int port) {
-        if (!BLANK_IP.equals(ip)) {
-            byteBuffer.putInt(Byte.BYTES, AddressUtil.ipToInt(ip));
-        }
-        if (port != BLANK_PORT) {
-            byteBuffer.putShort(Integer.BYTES + Byte.BYTES, (short) port);
-        }
-    }
-
-    protected InetSocketAddress getAddress(ByteBuffer byteBuffer) {
-        final String host = AddressUtil.int2IP(byteBuffer.getInt(Byte.BYTES));
-        int port = byteBuffer.getShort(Integer.BYTES + Byte.BYTES) & AddressUtil.U_SHORT;
-        return new InetSocketAddress(host, port);
-    }
-
-    protected int getLocalPort(ByteBuffer byteBuffer) {
-        return byteBuffer.getShort(Integer.BYTES + Byte.BYTES + Short.BYTES) & AddressUtil.U_SHORT;
-    }
-
-    protected void putLocalPort(ByteBuffer byteBuffer, int localPort) {
-        byteBuffer.putShort(Integer.BYTES + Byte.BYTES + Short.BYTES, (short) localPort);
-    }
-
-    protected void getValue(ByteBuffer byteBuffer, byte[] value) {
-        if (value != null) {
-            int index = Byte.BYTES + Integer.BYTES + Short.BYTES + Short.BYTES;
-            for (int i = 0; i < value.length; i++) {
-                value[i] = byteBuffer.get(index + i);
-            }
-        }
-    }
-
-    protected void putValue(ByteBuffer byteBuffer, byte[] value) {
-        if (value != null && value.length > 0) {
-            int index = Byte.BYTES + Integer.BYTES + Short.BYTES + Short.BYTES;
-            for (int i = 0; i < value.length; i++) {
-                byteBuffer.put(index + i, value[i]);
-            }
-        }
-    }
-
     @Override
     public void udpMessageProcess(InetSocketAddress current, byte[] data) {
 
@@ -169,7 +91,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
 
             switch (cmd) {
                 case heartbeat:
-                    heartbeat(current, byteBuffer);
+                    heartbeat(current);
                     break;
                 case broadcast:
                     broadcast(current, byteBuffer);
@@ -178,7 +100,10 @@ public class UDPBaseMessageHandler implements MessageHandler {
                     forward(current, byteBuffer);
                     break;
                 case close:
-                    close(current, byteBuffer);
+                    close(current);
+                    break;
+                default:
+                    processData(current, byteBuffer);
                     break;
             }
         }
@@ -209,9 +134,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
             return;
         }
 
-        ByteBuffer byteBuffer = createByteBuffer(close, BLANK_IP, BLANK_PORT, null);
-        byte[] data = byteBuffer.array();
-
+        final byte[] data = new byte[]{close};
         Set<Map.Entry<InetSocketAddress, UDPReceiveItem>> entries = clientMap.entrySet();
         Iterator<Map.Entry<InetSocketAddress, UDPReceiveItem>> iterator = entries.iterator();
         DatagramPacket packet = null;
@@ -278,6 +201,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
+    private static final byte[] heartbeats = new byte[]{heartbeat};
+
     public void register(InetSocketAddress current, ByteBuffer byteBuffer) {
 
         if (clientMap.containsKey(current)) {
@@ -289,10 +214,13 @@ public class UDPBaseMessageHandler implements MessageHandler {
                 return;
             }
 
-            byteBuffer = createByteBuffer(heartbeat, BLANK_IP, BLANK_PORT, null);
-            byte[] data = byteBuffer.array();
+            byte[] data = new byte[32];
+            getData(byteBuffer, data);
+            String token = new String(data);
+            // TODO: 校验token
+
             RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
-                private final DatagramPacket packet = new DatagramPacket(data, data.length, current);
+                private final DatagramPacket packet = new DatagramPacket(heartbeats, heartbeats.length, current);
 
                 @Override
                 public void run() {
@@ -313,7 +241,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void close(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void close(InetSocketAddress current) {
         synchronized (clientMapLock) {
             UDPReceiveItem item = clientMap.remove(current);
             if (item != null) {
@@ -322,12 +250,42 @@ public class UDPBaseMessageHandler implements MessageHandler {
         }
     }
 
-    public void heartbeat(InetSocketAddress current, ByteBuffer byteBuffer) {
+    public void heartbeat(InetSocketAddress current) {
         synchronized (clientMapLock) {
             UDPReceiveItem receiveItem = clientMap.get(current);
             if (receiveItem != null) {
                 receiveItem.setLastUpdateTime(System.currentTimeMillis());
             }
         }
+    }
+
+    public byte getCmd(ByteBuffer byteBuffer) {
+        return byteBuffer.get(0);
+    }
+
+    public void getData(ByteBuffer byteBuffer, byte[] data) {
+        int index = Byte.BYTES + Integer.BYTES + Short.BYTES + Short.BYTES;
+        for (int i = 0; i < data.length; i++) {
+            data[i] = byteBuffer.get(i + index);
+        }
+    }
+
+    public void setAddress(ByteBuffer byteBuffer, String ip, int port) {
+        byteBuffer.putInt(Byte.BYTES, IPUtil.IP4ToInt(ip));
+        byteBuffer.putShort(Integer.BYTES + Byte.BYTES, (short) port);
+    }
+
+    public InetSocketAddress getAddress(ByteBuffer byteBuffer) {
+        final String host = IPUtil.int2IP4(byteBuffer.getInt(Byte.BYTES));
+        int port = byteBuffer.getShort(Integer.BYTES + Byte.BYTES) & IPUtil.U_SHORT;
+        return new InetSocketAddress(host, port);
+    }
+
+    public int getLocalPort(ByteBuffer byteBuffer) {
+        return byteBuffer.getShort(Integer.BYTES + Byte.BYTES + Short.BYTES) & IPUtil.U_SHORT;
+    }
+
+    public void putLocalPort(ByteBuffer byteBuffer, int localPort) {
+        byteBuffer.putShort(Integer.BYTES + Byte.BYTES + Short.BYTES, (short) localPort);
     }
 }
