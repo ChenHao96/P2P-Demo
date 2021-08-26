@@ -1,6 +1,5 @@
 package top.sclab.java.handler;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import top.sclab.java.model.UDPReceiveItem;
 import top.sclab.java.service.MessageHandler;
@@ -11,10 +10,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.RunnableScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -36,8 +32,11 @@ public abstract class UDPBaseMessageHandler implements MessageHandler {
 
     private volatile boolean activated = false;
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate redisTemplate;
+
+    public UDPBaseMessageHandler(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = Objects.requireNonNull(redisTemplate);
+    }
 
     @Override
     public void setUdpSocket(DatagramSocket socket) {
