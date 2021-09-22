@@ -80,7 +80,7 @@ public class UDPClientHandler implements HandlerInit, HandlerDestroy, Runnable {
 
             InetSocketAddress socketAddress = (InetSocketAddress) serverPacket.getSocketAddress();
             System.out.printf("收到数据 %s -> %s\n", socketAddress, Arrays.toString(data));
-            threadPoolExecutor.submit(() -> messageProcessService.udpMessageProcess(socketAddress, data));
+            threadPoolExecutor.submit(() -> messageProcessService.messageProcess(socketAddress, data));
         }
     }
 

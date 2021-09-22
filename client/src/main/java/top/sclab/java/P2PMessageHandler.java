@@ -47,7 +47,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         final byte[] data = byteBuffer.array();
 
         try {
-            socket.send(new DatagramPacket(data, data.length, serverAddress));
+            serverSocket.send(new DatagramPacket(data, data.length, serverAddress));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -65,7 +65,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         if (PING_VALUE.equals(str)) {
             if (current.equals(serverAddress)) {
 
-                putLocalPort(byteBuffer, socket.getLocalPort());
+                putLocalPort(byteBuffer, serverSocket.getLocalPort());
                 final byte[] data = byteBuffer.array();
                 RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
                     private final DatagramPacket packet = new DatagramPacket(data, data.length, address);
@@ -74,7 +74,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                     @Override
                     public void run() {
                         try {
-                            socket.send(packet);
+                            serverSocket.send(packet);
                         } catch (IOException e) {
                             e.printStackTrace();
                         } finally {
@@ -99,7 +99,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
                 putValue(byteBuffer, PONG_VALUE.getBytes());
                 final byte[] data = byteBuffer.array();
                 try {
-                    socket.send(new DatagramPacket(data, data.length, current));
+                    serverSocket.send(new DatagramPacket(data, data.length, current));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -119,8 +119,8 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         int localPort = getLocalPort(byteBuffer);
 
         setCmd(byteBuffer, forward);
-        long initialDelay = socket.getLocalPort() == localPort ? PERIOD_MS * 2 : 0;
-        putLocalPort(byteBuffer, socket.getLocalPort());
+        long initialDelay = serverSocket.getLocalPort() == localPort ? PERIOD_MS * 2 : 0;
+        putLocalPort(byteBuffer, serverSocket.getLocalPort());
 
         final byte[] data = byteBuffer.array();
         RunnableScheduledFuture<?> future = (RunnableScheduledFuture<?>) poolExecutor.scheduleAtFixedRate(new Runnable() {
@@ -130,7 +130,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
             @Override
             public void run() {
                 try {
-                    socket.send(packet);
+                    serverSocket.send(packet);
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
@@ -147,7 +147,7 @@ public class P2PMessageHandler extends UDPBaseMessageHandler {
         futureMap.put(address, future);
 
         try {
-            socket.send(new DatagramPacket(data, data.length, serverAddress));
+            serverSocket.send(new DatagramPacket(data, data.length, serverAddress));
         } catch (IOException e) {
             e.printStackTrace();
         }

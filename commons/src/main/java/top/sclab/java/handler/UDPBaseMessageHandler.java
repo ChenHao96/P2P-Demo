@@ -24,7 +24,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
     public static final byte heartbeat = 'h';
     public static final byte broadcast = 'b';
 
-    protected DatagramSocket socket;
+    protected DatagramSocket serverSocket;
 
     private ScheduledThreadPoolExecutor poolExecutor;
 
@@ -35,8 +35,8 @@ public class UDPBaseMessageHandler implements MessageHandler {
     private volatile boolean activated = false;
 
     @Override
-    public void setUdpSocket(DatagramSocket socket) {
-        this.socket = socket;
+    public void setUDPSocket(DatagramSocket serverSocket) {
+        this.serverSocket = serverSocket;
     }
 
     private static final long HeartbeatIntervalTime = TimeUnit.SECONDS.toMillis(15);
@@ -155,7 +155,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
     }
 
     @Override
-    public void udpMessageProcess(InetSocketAddress current, byte[] data) {
+    public void messageProcess(InetSocketAddress current, byte[] data) {
 
         if (!activated) {
             return;
@@ -225,7 +225,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
             }
 
             try {
-                socket.send(packet);
+                serverSocket.send(packet);
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
@@ -244,7 +244,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
                 putLocalPort(byteBuffer, address.getPort());
                 try {
                     byte[] data = byteBuffer.array();
-                    socket.send(new DatagramPacket(data, data.length, address));
+                    serverSocket.send(new DatagramPacket(data, data.length, address));
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
@@ -268,7 +268,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
                 try {
                     putLocalPort(byteBuffer, address.getPort());
                     packet.setSocketAddress(address);
-                    socket.send(packet);
+                    serverSocket.send(packet);
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
@@ -297,7 +297,7 @@ public class UDPBaseMessageHandler implements MessageHandler {
                 @Override
                 public void run() {
                     try {
-                        socket.send(packet);
+                        serverSocket.send(packet);
                     } catch (IOException e) {
                         e.printStackTrace();
                     } finally {

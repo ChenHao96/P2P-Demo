@@ -102,7 +102,7 @@ public class ClientBootstrap {
         InetSocketAddress serverAddress = new InetSocketAddress(host, Integer.parseInt(port));
 
         P2PMessageHandler messageHandler = new P2PMessageHandler(serverAddress);
-        messageHandler.setUdpSocket(socket);
+        messageHandler.setUDPSocket(socket);
         messageHandler.init();
 
         UDPClientHandler udpHandler = new UDPClientHandler(socket, serverAddress);
