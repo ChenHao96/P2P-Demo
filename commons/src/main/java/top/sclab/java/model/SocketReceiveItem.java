@@ -3,7 +3,7 @@ package top.sclab.java.model;
 import java.io.Serializable;
 import java.util.concurrent.RunnableScheduledFuture;
 
-public class UDPReceiveItem implements Serializable {
+public class SocketReceiveItem implements Serializable {
 
     private RunnableScheduledFuture<?> future;
 

@@ -1,20 +1,12 @@
 package top.sclab.java.handler;
 
-import top.sclab.java.service.MessageHandler;
-
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 
-public class TCPBaseMessageHandler implements MessageHandler {
-
-    // TODO:
+public class TCPBaseMessageHandler extends BaseMessageHandler {
 
     private Socket serverSocket;
-
-    @Override
-    public void init() {
-
-    }
 
     @Override
     public void setTCPSocket(Socket serverSocket) {
@@ -22,12 +14,27 @@ public class TCPBaseMessageHandler implements MessageHandler {
     }
 
     @Override
-    public void messageProcess(InetSocketAddress current, byte[] data) {
+    protected void close(InetSocketAddress current, ByteBuffer byteBuffer) {
 
     }
 
     @Override
-    public void destroy() {
+    protected void forward(InetSocketAddress current, ByteBuffer byteBuffer) {
+
+    }
+
+    @Override
+    protected void broadcast(InetSocketAddress current, ByteBuffer byteBuffer) {
+
+    }
+
+    @Override
+    protected void register(InetSocketAddress current, ByteBuffer byteBuffer) {
+
+    }
+
+    @Override
+    protected void sendCloseMessageFromServer() {
 
     }
 }
